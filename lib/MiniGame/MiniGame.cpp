@@ -24,15 +24,8 @@ void MiniGame::customFirst() {
 }
 
 void MiniGame::customLoop() {
-  if (this-running) {
+  if (this->running) {
     if (this->counter % this->speed == 0) {
-      Serial.print("[DEBUG] Position: ");
-      Serial.println(this->position);
-
-      if(this->position == this->goalIndex) {
-        Serial.println("[DEBUG] goalIndex reached");
-      }
-
       this->position = (this->position + 1) % LED_NUM_LEDS;
       
       for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
@@ -47,16 +40,15 @@ void MiniGame::customLoop() {
         }
       }
 
-      this->lightService->setLed(this->position, CRGB::White);
-      this->lightService->show();
+      if (this->position == this->goalIndex) {
+        this->lightService->setLed(this->position, CRGB::Gold);
+        this->lightService->show();
+      } else {
+        this->lightService->setLed(this->position, CRGB::White);
+        this->lightService->show();
+      }
     }
-  }
 
-  /**
-   * If you merge the two if statements, the game will not be stoppable anymore
-   * For some reason the condition will be ignored. Is this a bug in the compiler?
-   */
-  if (this->running) {
     this->counter++;
 
     this->newSpeed();
@@ -70,10 +62,25 @@ void MiniGame::last() {
 void MiniGame::customClick() {
   Serial.println("[INFO] MiniGame customClick");
 
-  this->lightService->setLed(this->goalIndex, CRGB::Black);
-  this->lightService->show();
+  if (!this->running) {
+    return;
+  }
+
+  if (this->goalIndex != this->position) {
+    this->lightService->setLed(this->goalIndex, CRGB::Black);
+  } else {
+    this->lightService->setLed(this->goalIndex, CRGB::White);
+  }
 
   this->goalIndex = (this->goalIndex + 1) % LED_NUM_LEDS;
+
+  if (this->goalIndex != this->position) {
+    this->lightService->setLed(this->goalIndex, CRGB::Green);
+  } else {
+    this->lightService->setLed(this->goalIndex, CRGB::Gold);
+  }
+
+  this->lightService->show();
 }
 
 bool MiniGame::newSpeed() {
@@ -83,13 +90,7 @@ bool MiniGame::newSpeed() {
 
   uint16_t level = this->getLevel();
 
-  level = this->invExpNormalize(level, 0, DISTANCE_LEVELS, MINIGAME_SPEED_MAX, .5);
-
-  if (level < MINIGAME_SPEED_MIN) {
-    level = MINIGAME_SPEED_MIN;
-  } else if (level > MINIGAME_SPEED_MAX) {
-    level = MINIGAME_SPEED_MAX;
-  }
+  level = map(level, 0, DISTANCE_LEVELS, MINIGAME_SPEED_MIN, MINIGAME_SPEED_MAX);
 
   if (level == this->speed) {
     return false;
@@ -116,4 +117,18 @@ void MiniGame::stop() {
   } else {
     Serial.println("[INFO] Just try again!");
   }
+}
+
+void MiniGame::win() {
+  for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
+    this->lightService->setLed(i, random(0, 255), random(0, 255), random(0, 255));
+  }
+
+  this->lightService->show();
+}
+
+void MiniGame::lose() {
+  Serial.println("[INFO] MiniGame lose");
+
+  this->lightService->fill(CRGB::Red);
 }

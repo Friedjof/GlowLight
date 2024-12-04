@@ -20,6 +20,9 @@ class MiniGame : public AbstractMode {
     void run();
     void stop();
 
+    void win();
+    void lose();
+
   private:
     uint16_t speed = MINIGAME_SPEED_DEFAULT;
     uint16_t position = 0;
