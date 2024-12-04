@@ -72,6 +72,7 @@ bool AbstractMode::nextOption() {
   Serial.println("'");
 
   this->optionChanged = true;
+  this->optionCalled = false;
 
   return this->options.get(this->currentOption).alert;
 }
@@ -81,7 +82,13 @@ bool AbstractMode::callCurrentOption() {
     return false;
   }
 
+  if ((this->optionCalled && this->options.get(this->currentOption).onlyOnce) || this->options.get(this->currentOption).disabled) {
+    return false;
+  }
+
   this->options.get(this->currentOption).callback();
+
+  this->optionCalled = true;
 
   return true;
 }
@@ -90,6 +97,8 @@ bool AbstractMode::recallCurrentOption() {
   if (this->options.size() == 0 || this->currentOption >= this->options.size()) {
     return false;
   }
+
+  this->optionCalled = true;
 
   this->options.get(this->currentOption).callback();
 

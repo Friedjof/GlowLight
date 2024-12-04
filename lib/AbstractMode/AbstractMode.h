@@ -29,6 +29,7 @@ class AbstractMode {
 		uint8_t currentOption = 0;
 
 		bool optionChanged = false;
+		bool optionCalled = false;
 
 		ArrayList<option_t> options;
 

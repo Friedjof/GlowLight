@@ -10,6 +10,7 @@
 #include "StaticMode.h"
 #include "CandleMode.h"
 #include "RainbowMode.h"
+#include "MiniGame.h"
 
 #include "GlowConfig.h"
 
@@ -28,6 +29,7 @@ Alert alertMode(&lightService, &distanceService);
 StaticMode staticMode(&lightService, &distanceService);
 CandleMode candleMode(&lightService, &distanceService);
 RainbowMode rainbowMode(&lightService, &distanceService);
+MiniGame miniGame(&lightService, &distanceService);
 
 
 void setup() {
@@ -48,8 +50,10 @@ void setup() {
   staticMode.setup();
   candleMode.setup();
   rainbowMode.setup();
+  miniGame.setup();
 
   // add modes to controller
+  controller.addMode(&miniGame);
   controller.addMode(&staticMode);
   controller.addMode(&candleMode);
   controller.addMode(&rainbowMode);
