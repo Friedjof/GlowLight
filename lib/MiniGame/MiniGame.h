@@ -21,7 +21,8 @@ class MiniGame : public AbstractMode {
     void stop();
 
     void win();
-    void lose();
+
+    void updateLightSteps();
 
   private:
     uint16_t speed = MINIGAME_SPEED_DEFAULT;
@@ -29,6 +30,7 @@ class MiniGame : public AbstractMode {
     uint16_t goalIndex = 0;
 
     bool running = false;
+    bool won = false;
 
     uint64_t counter = 0;
 };

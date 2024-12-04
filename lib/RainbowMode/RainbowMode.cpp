@@ -28,8 +28,6 @@ void RainbowMode::customLoop() {
     this->lightService->setLed(i, CHSV(hue, this->saturation, LED_MAX_BRIGHTNESS));
   }
 
-  this->lightService->show();
-
   if (this->counter++ % this->speed == 0 && !this->stopped) {
     if (++this->index > LED_NUM_LEDS) {
       this->index = 0;

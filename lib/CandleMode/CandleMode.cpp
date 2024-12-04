@@ -37,7 +37,6 @@ void CandleMode::customLoop() {
     for (uint8_t i = 0; i < LED_NUM_LEDS; i++) {
       this->lightService->setLed(i, this->colors.get(random(0, this->colors.size())));
     }
-    this->lightService->show();
   }
 }
 

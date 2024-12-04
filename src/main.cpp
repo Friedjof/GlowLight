@@ -83,6 +83,7 @@ void setup() {
 
 void loop() {
   button.loop();
-  distanceService.loop();
   controller.loop();
+  lightService.loop();
+  distanceService.loop();
 }

@@ -188,6 +188,7 @@ void AbstractMode::loop() {
 
 void AbstractMode::first() {
   this->resetBrightness();
+  this->lightService->setLightUpdateSteps(LED_UPDATE_STEPS);
 
   this->customFirst();
 }
