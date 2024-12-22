@@ -2,6 +2,20 @@
 
 This repository contains the software, schematics, and 3D printing files for a bedside lamp. The software includes various modes that can be toggled using a button. Additionally, there is a distance sensor (`VL53L0X`) that enables features such as adjusting the lamp's brightness with a hand gesture.
 
+## Pictures
+
+<table>
+  <tr>
+    <td><img src="media/images/rainbow-mode.jpg" alt="Rainbow Mode" width="175"></td>
+    <td><img src="media/images/usb-c-port.jpg" alt="USB-C Port" width="175"></td>
+    <td><img src="media/images/bottom-side.jpg" alt="Bottom Side" width="175"></td>
+    <td><img src="media/images/inside.jpg" alt="Inside" width="175"></td>
+</table>
+
+![Modes](/media/images/modes.png)
+
+This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
+
 ## Hardware Components
 
 - Seeed Xiao ESP32C3
@@ -10,7 +24,7 @@ This repository contains the software, schematics, and 3D printing files for a b
 - WS2812B 5V LED strip
 - External 5V power supply
 - USB-C and other necessary cables
-- Small screws
+- M3 screws
 
 ## Tools and Materials
 
