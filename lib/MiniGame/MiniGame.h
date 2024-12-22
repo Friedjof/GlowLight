@@ -27,7 +27,7 @@ class MiniGame : public AbstractMode {
   private:
     uint16_t speed = MINIGAME_SPEED_DEFAULT;
     uint16_t position = 0;
-    uint16_t goalIndex = 0;
+    uint16_t goalIndex = LED_NUM_LEDS / 2;
 
     bool running = false;
     bool won = false;
