@@ -94,6 +94,12 @@ void LightService::setLed(uint8_t index, CRGB color) {
   this->leds[index] = color;
 }
 
+void LightService::setLed(CRGB color) {
+  for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
+    this->leds[i] = color;
+  }
+}
+
 void LightService::updateLed(uint8_t index, uint8_t red, uint8_t green, uint8_t blue) {
   this->leds[index] = CRGB(red, green, blue);
   this->currentLeds[index] = CRGB(red, green, blue);
@@ -104,6 +110,15 @@ void LightService::updateLed(uint8_t index, uint8_t red, uint8_t green, uint8_t 
 void LightService::updateLed(uint8_t index, CRGB color) {
   this->leds[index] = color;
   this->currentLeds[index] = color;
+
+  FastLED.show();
+}
+
+void LightService::updateLed(CRGB color) {
+  for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
+    this->leds[i] = color;
+    this->currentLeds[i] = color;
+  }
 
   FastLED.show();
 }
