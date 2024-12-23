@@ -19,6 +19,9 @@ void BeaconMode::setup() {
   this->addOption("Hue two", [this]() {
     this->newHueTwo();
   }, true);
+  this->addOption("Brightness", std::function<void()>([this](){
+    this->setBrightness();
+  }));
 }
 
 void BeaconMode::customFirst() {
