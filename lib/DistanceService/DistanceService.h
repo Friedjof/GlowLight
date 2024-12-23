@@ -11,6 +11,7 @@
 typedef struct {
   uint16_t distance;
   uint16_t level;
+  uint8_t status;
 } result_t;
 
 

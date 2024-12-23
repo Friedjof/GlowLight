@@ -6,7 +6,7 @@ DistanceService::DistanceService() {
 }
 
 DistanceService::~DistanceService() {
-  // TODO: set XSHUT-Pin of VL53L0X to low to disable sensor, otherwise the initialization of the sensor will fail next time
+  // nothing to do here
 }
 
 void DistanceService::setup() {
@@ -30,6 +30,9 @@ void DistanceService::setup() {
     return;
   }
 
+  // set sensor to high speed mode, alternatively use VL53L0X_SENSE_DEFAULT or VL53L0X_SENSE_LONG_RANGE
+  this->sensor.configSensor(Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_SPEED);
+
   Serial.println("[INFO] Sensor initialized");
 
   this->sensorPresent = true;
@@ -44,14 +47,13 @@ void DistanceService::loop() {
 
   this->sensor.rangingTest(&measure, false);
 
-  // check if distance is out of range
-  if (measure.RangeStatus == 4) {
-    return;
+  this->result.status = measure.RangeStatus;
+
+  // check if object is present
+  if (this->objectPresent()) {
+    this->result.distance = this->filter(measure.RangeMilliMeter);
   }
 
-  uint16_t distance = measure.RangeMilliMeter;
-
-  this->result.distance = this->filter(distance);
   uint16_t level = this->distance2level(this->result.distance);
 
   // if distance is unchanged, do nothing and if state not fixed, set it to changing
@@ -67,7 +69,7 @@ void DistanceService::loop() {
     Serial.println(this->result.level);
   }
 
-  if (this->changing() && this->result.distance > DISTANCE_UNCHANGED_MM) {
+  if (this->changing() && !this->objectPresent()) {
     this->status = 0x00;
   }
 
@@ -149,8 +151,9 @@ bool DistanceService::released() {
   return this->status == DISTANCE_RELEASE_STATUS;
 }
 
+// an object is present if the distance is less than the unchanged distance and the status is 0x00 (valid)
 bool DistanceService::objectPresent() {
-  return this->result.distance < DISTANCE_UNCHANGED_MM;
+  return this->result.distance < DISTANCE_UNCHANGED_MM && this->result.status == 0x00;
 }
 
 bool DistanceService::alert() {
