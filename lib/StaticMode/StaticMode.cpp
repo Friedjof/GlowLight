@@ -10,6 +10,9 @@ StaticMode::StaticMode(LightService* lightService, DistanceService* distanceServ
 }
 
 void StaticMode::setup() {
+  this->addOption("Warmer pink", [this]() {
+    this->lightService->fill(CRGB(255, 180, 200));
+  }, false);
   this->addOption("Warm soft yellow", [this]() {
     this->lightService->fill(CRGB(255, 240, 180));
   }, false);
@@ -27,9 +30,6 @@ void StaticMode::setup() {
   }, false);
   this->addOption("Warm coral", [this]() {
     this->lightService->fill(CRGB(255, 155, 105));
-  }, false);
-  this->addOption("Warmer pink", [this]() {
-    this->lightService->fill(CRGB(255, 180, 200));
   }, false);
   this->addOption("Gold", [this]() {
     this->lightService->fill(CRGB(255, 220, 70));
@@ -50,7 +50,9 @@ void StaticMode::customFirst() {
 }
 
 void StaticMode::customLoop() {
-  this->setBrightness();
+  if (!this->fixed) {
+    this->setBrightness();
+  }
 }
 
 void StaticMode::last() {
@@ -58,5 +60,6 @@ void StaticMode::last() {
 }
 
 void StaticMode::customClick() {
-  // nothing to do
+  Serial.print("[INFO] " + this->fixed ? "fixed" : "released");
+  this->fixed = !this->fixed;
 }

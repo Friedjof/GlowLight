@@ -18,6 +18,9 @@ class StaticMode : public AbstractMode {
     void last();
 
     void customClick();
+
+  private:
+    bool fixed = false;
 };
 
 #endif
