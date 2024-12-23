@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#include <VL53L0X.h>
+#include "Adafruit_VL53L0X.h"
 
 #include "GlowConfig.h"
 
@@ -36,7 +36,7 @@ class DistanceService {
     bool alert();
 
   private:
-    VL53L0X sensor;
+    Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
 
     result_t result = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 

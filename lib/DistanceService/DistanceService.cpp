@@ -15,11 +15,9 @@ void DistanceService::setup() {
     return;
   }
 
-  this->sensor.setTimeout(DISTANCE_TIMEOUT_MS);
-
   uint8_t tries = 0;
 
-  while (!this->sensor.init() && tries < 8) {
+  while (!this->sensor.begin() && tries < 8) {
     Serial.print("[ERROR] Failed to detect and initialize sensor, retrying in 1 second (retry ");
     Serial.print(++tries);
     Serial.println(")");
@@ -33,9 +31,6 @@ void DistanceService::setup() {
   }
 
   Serial.println("[INFO] Sensor initialized");
-  
-  // source: https://registry.platformio.org/libraries/pololu/VL53L0X/examples/Single/Single.ino
-  this->sensor.setMeasurementTimingBudget(static_cast<unsigned long>(DISTANCE_TIMING_BUDGET_MS) * 1000);
 
   this->sensorPresent = true;
 }
@@ -45,12 +40,16 @@ void DistanceService::loop() {
     return;
   }
 
-  uint16_t distance = this->sensor.readRangeSingleMillimeters();
+  VL53L0X_RangingMeasurementData_t measure;
 
-  if (this->sensor.timeoutOccurred()) {
-    Serial.println("[ERROR] Timeout occurred");
+  this->sensor.rangingTest(&measure, false);
+
+  // check if distance is out of range
+  if (measure.RangeStatus == 4) {
     return;
   }
+
+  uint16_t distance = measure.RangeMilliMeter;
 
   this->result.distance = this->filter(distance);
   uint16_t level = this->distance2level(this->result.distance);
