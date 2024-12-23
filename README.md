@@ -6,10 +6,10 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 <table>
   <tr>
-    <td><img src="media/images/rainbow-mode.jpg" alt="Rainbow Mode" width="175"></td>
-    <td><img src="media/images/usb-c-port.jpg" alt="USB-C Port" width="175"></td>
-    <td><img src="media/images/bottom-side.jpg" alt="Bottom Side" width="175"></td>
-    <td><img src="media/images/inside.jpg" alt="Inside" width="175"></td>
+    <td><img src="media/images/rainbow-mode.jpg" alt="Rainbow Mode"></td>
+    <td><img src="media/images/usb-c-port.jpg" alt="USB-C Port"></td>
+    <td><img src="media/images/bottom-side.jpg" alt="Bottom Side"></td>
+    <td><img src="media/images/inside.jpg" alt="Inside"></td>
 </table>
 
 ![Modes](/media/images/modes.png)
