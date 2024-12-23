@@ -11,6 +11,7 @@
 #include "ColorPickerMode.h"
 #include "RainbowMode.h"
 #include "CandleMode.h"
+#include "BeaconMode.h"
 #include "MiniGame.h"
 
 #include "GlowConfig.h"
@@ -31,6 +32,7 @@ StaticMode staticMode(&lightService, &distanceService);
 ColorPickerMode colorPickerMode(&lightService, &distanceService);
 RainbowMode rainbowMode(&lightService, &distanceService);
 CandleMode candleMode(&lightService, &distanceService);
+BeaconMode beaconMode(&lightService, &distanceService);
 MiniGame miniGame(&lightService, &distanceService);
 
 
@@ -53,9 +55,12 @@ void setup() {
   colorPickerMode.setup();
   rainbowMode.setup();
   candleMode.setup();
+  beaconMode.setup();
   miniGame.setup();
 
   // add modes to controller
+  controller.addMode(&beaconMode);
+  
   controller.addMode(&staticMode);
   controller.addMode(&colorPickerMode);
   controller.addMode(&rainbowMode);
