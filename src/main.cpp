@@ -49,22 +49,12 @@ void setup() {
 
   button.setLongClickTime(500);
 
-  // setup modes
-  alertMode.setup();
-  staticMode.setup();
-  colorPickerMode.setup();
-  rainbowMode.setup();
-  candleMode.setup();
-  beaconMode.setup();
-  miniGame.setup();
-
   // add modes to controller
-  controller.addMode(&beaconMode);
-  
   controller.addMode(&staticMode);
   controller.addMode(&colorPickerMode);
   controller.addMode(&rainbowMode);
   controller.addMode(&candleMode);
+  controller.addMode(&beaconMode);
   controller.addMode(&miniGame);
 
   // set alert mode

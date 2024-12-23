@@ -9,6 +9,10 @@ void Controller::addMode(AbstractMode* mode) {
   Serial.print(mode->getTitle());
   Serial.println("'");
 
+  // setup mode
+  mode->setup();
+
+  // add mode to mode list
   this->modes.add(mode);
 }
 
