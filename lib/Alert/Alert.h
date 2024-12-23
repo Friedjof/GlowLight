@@ -24,7 +24,7 @@ class Alert : public AbstractMode {
     bool setColor(CRGB color);
 
   private:
-    CRGB color = CRGB::GreenYellow;
+    CRGB color = CRGB(255, 180, 200); // Warmer pink
 
     uint16_t index = 0;
     bool flashing = false;
