@@ -36,9 +36,7 @@ void BeaconMode::customLoop() {
 
     this->position = (this->position + 1) % LED_NUM_LEDS;
 
-    for (int i = 0; i < BEACON_LENGTH_DEFAULT; i++) {
-      this->setHue(this->position + i, this->hueTwo);
-    }
+    this->setHue((this->position + BEACON_LENGTH_DEFAULT) % LED_NUM_LEDS, this->hueTwo);
   }
 }
 
