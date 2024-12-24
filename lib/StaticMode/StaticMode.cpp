@@ -10,11 +10,11 @@ StaticMode::StaticMode(LightService* lightService, DistanceService* distanceServ
 }
 
 void StaticMode::setup() {
+  this->addOption("Warm soft yellow", [this]() {
+    this->lightService->fill(CRGB(255, 128, 20));
+  }, false);
   this->addOption("Warmer pink", [this]() {
     this->lightService->fill(CRGB(255, 180, 200));
-  }, false);
-  this->addOption("Warm soft yellow", [this]() {
-    this->lightService->fill(CRGB(255, 240, 180));
   }, false);
   this->addOption("Warm lavender", [this]() {
     this->lightService->fill(CRGB(230, 170, 255));
