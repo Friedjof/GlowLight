@@ -26,6 +26,20 @@ This is an overview of the different modes available in the lamp. The modes can 
 - USB-C and other necessary cables
 - M3 screws
 
+## Pinout
+
+| Component | Pin | ESP32C3 Pin |
+| --------- | --- | ----------- |
+| Button    | 1   | GPIO 4      |
+| Button    | 2   | GND         |
+| VL53L0X   | SDA | GPIO 6      |
+| VL53L0X   | SCL | GPIO 7      |
+| VL53L0X   | VCC | 5V          |
+| VL53L0X   | GND | GND         |
+| WS2812B   | VCC | 5V          |
+| WS2812B   | GND | GND         |
+| WS2812B   | DI  | GPIO 3      |
+
 ## Tools and Materials
 
 - 3D printer + filament (white and a color of your choice)
@@ -66,7 +80,7 @@ The `print` folder contains STL files for the lamp's 3D models. These files are 
 
 - [`ArrayList`](https://registry.platformio.org/libraries/braydenanderson2014/ArrayList) for dynamic arrays
 - [`Button2`](https://registry.platformio.org/libraries/lennarthennigs/Button2) for button input handling
-- [`VL53L0X`](https://registry.platformio.org/libraries/pololu/VL53L0X) for the distance sensor
+- [`Adafruit_VL53L0X`](https://github.com/adafruit/Adafruit_VL53L0X) for the distance sensor
 - [`FastLED`](https://registry.platformio.org/libraries/fastled/FastLED) for LED control
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
