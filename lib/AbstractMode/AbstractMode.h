@@ -31,6 +31,10 @@ class AbstractMode {
 		bool optionChanged = false;
 		bool optionCalled = false;
 
+		uint64_t startWipe = 0;
+		uint64_t stopWipe = 0;
+		bool wipe = false;
+
 		ArrayList<option_t> options;
 
 	protected:
