@@ -465,7 +465,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="5awla5m2z_i15Joyk6SM" name="soldering">
-    <mxGraphModel dx="1593" dy="2100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="441" dy="1427" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -781,6 +781,15 @@
         </mxCell>
         <mxCell id="4HjZewQC-Dzs3IHz1_52-91" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="4HjZewQC-Dzs3IHz1_52-99">
           <mxGeometry y="83.75" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="4HjZewQC-Dzs3IHz1_52-116" value="GND" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeWidth=1;fontSize=15;rotation=-90;" vertex="1" parent="4HjZewQC-Dzs3IHz1_52-99">
+          <mxGeometry x="17.19" y="86.57" width="50" height="24.37" as="geometry" />
+        </mxCell>
+        <mxCell id="4HjZewQC-Dzs3IHz1_52-117" value="5V" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeWidth=1;fontSize=15;rotation=-90;" vertex="1" parent="4HjZewQC-Dzs3IHz1_52-99">
+          <mxGeometry x="17.189999999999998" y="9.059999999999995" width="50" height="24.37" as="geometry" />
+        </mxCell>
+        <mxCell id="4HjZewQC-Dzs3IHz1_52-118" value="Din" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeWidth=1;fontSize=15;rotation=-90;" vertex="1" parent="4HjZewQC-Dzs3IHz1_52-99">
+          <mxGeometry x="17.189999999999998" y="47.81999999999999" width="50" height="24.37" as="geometry" />
         </mxCell>
         <mxCell id="4HjZewQC-Dzs3IHz1_52-100" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=none;endFill=0;strokeWidth=3;strokeColor=#A680B8;" edge="1" parent="1" source="4HjZewQC-Dzs3IHz1_52-6" target="4HjZewQC-Dzs3IHz1_52-66">
           <mxGeometry relative="1" as="geometry">
