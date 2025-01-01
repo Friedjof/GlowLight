@@ -21,7 +21,7 @@ This is an overview of the different modes available in the lamp. The modes can 
 
 ## Hardware Components
 
-- Seeed Xiao ESP32C3
+- DUBEUYEW ESP32-C3 Development Board Mini
 - VL53L0X distance sensor
 - Simple push button (hight ≥ 6mm)
 - WS2812B 5V LED strip (11 LEDs)
@@ -29,6 +29,9 @@ This is an overview of the different modes available in the lamp. The modes can 
 - USB-C and some other necessary cables
 - 3x M3 threaded insert
 - 3x M3 screws
+
+### Main Components
+![Main Components](media/images/components/button_sensor_esp32c3_led_mini.png)
 
 ### Tools and Materials
 
