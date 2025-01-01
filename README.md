@@ -6,13 +6,15 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 <table>
   <tr>
-    <td><img src="media/images/rainbow-mode.jpg" alt="Rainbow Mode"></td>
-    <td><img src="media/images/usb-c-port.jpg" alt="USB-C Port"></td>
-    <td><img src="media/images/bottom-side.jpg" alt="Bottom Side"></td>
-    <td><img src="media/images/inside.jpg" alt="Inside"></td>
+    <td><img src="media/images/demo/rainbow_mode.jpg" alt="Rainbow Mode"></td>
+    <td><img src="media/images/demo/usb-c_port.jpg" alt="USB-C Port"></td>
+    <td><img src="media/images/demo/bottom_side.jpg" alt="Bottom Side"></td>
+    <td><img src="media/images/demo/inside.jpg" alt="Inside"></td>
 </table>
 
-![Modes](/media/images/modes.png)
+[-> Rainbow Mode Demo Video](media/images/demo/dual_lamps_rainbow_mode.mp4)
+
+![Modes](media/images/demo/modes.png)
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
 
