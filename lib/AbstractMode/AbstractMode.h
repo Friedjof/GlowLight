@@ -59,7 +59,7 @@ class AbstractMode {
 	public:
 		AbstractMode(LightService* lightService, DistanceService* distanceService);
 		~AbstractMode();
-		
+
 		String getTitle();
 		String getDescription();
 		String getAuthor();

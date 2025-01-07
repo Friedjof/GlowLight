@@ -2,10 +2,12 @@
 #include <Button2.h>
 #include <Wire.h>
 
+// controller and services
 #include "Controller.h"
 #include "LightService.h"
 #include "DistanceService.h"
 
+// modes
 #include "Alert.h"
 #include "StaticMode.h"
 #include "ColorPickerMode.h"
@@ -14,6 +16,7 @@
 #include "CandleMode.h"
 #include "MiniGame.h"
 
+// config
 #include "GlowConfig.h"
 
 
@@ -35,9 +38,13 @@ BeaconMode beaconMode(&lightService, &distanceService);
 CandleMode candleMode(&lightService, &distanceService);
 MiniGame miniGame(&lightService, &distanceService);
 
-
+/*
+ * This is the main setup function; it is called only once during startup.
+ */
 void setup() {
   Serial.begin(115200);
+
+  // setup i2c for the distance sensor
   Wire.begin(DISTANCE_SENSOR_SDA, DISTANCE_SENSOR_SCL);
 
   Serial.println("[INFO] Starting Glow");
@@ -47,9 +54,10 @@ void setup() {
   distanceService.setup();
   button.begin(BUTTON_PIN);
 
+  // set debounce time (this is the time the button needs to be stable before a press is registered)
   button.setLongClickTime(500);
 
-  // add modes to controller
+  // the modes need to be added to the controller and the order will be the order of the modes
   controller.addMode(&staticMode);
   controller.addMode(&colorPickerMode);
   controller.addMode(&rainbowMode);
@@ -72,15 +80,19 @@ void setup() {
     controller.nextOption();
   });
 
+  // this click can be used for custom actions in the current mode
   button.setDoubleClickHandler([](Button2 &btn) {
     controller.customClick();
   });
 
-  Serial.println("[INFO] Glow started");
+  Serial.println("[INFO] GlowLight started");
 }
 
-
+/*
+ * This is the main loop function; it is called repeatedly by the system.
+ */
 void loop() {
+  // The services and controller need to be looped
   button.loop();
   controller.loop();
   lightService.loop();
