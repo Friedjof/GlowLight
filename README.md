@@ -15,7 +15,7 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 [-> Rainbow Mode Demo Video](media/images/demo/dual_lamps_rainbow_mode.mp4)
 
-![Modes](media/images/demo/modes.png)
+![Modes](media/images/diagrams/modes.png)
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
 
@@ -125,6 +125,24 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 - [`FastLED`](https://registry.platformio.org/libraries/fastled/FastLED) for LED control
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
+
+## Development
+
+The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services and the controller are implemented in separate files in the [`/lib`](/lib) folder.
+
+### Classes
+
+![Classes](media/images/diagrams/classes.png)
+
+### Modes
+
+Every Mode is a class that inherits from the `AbstractMode` class. The abstract class already implements the basic functions that every mode should have. In every mode, the following functions must be implemented: `setup`, `customFirst`, `customLoop`, `last`, and `customClick`.
+
+- `setup`: This function is called once when the mode is added to the controller when the lamp is turned on.
+- `customFirst`: This function is called once when the mode is newly selected.
+- `customLoop`: This function is called every loop iteration.
+- `last`: This function is called once when the mode is removed from the controller.
+- `customClick`: This function is called when a double click is detected from the button.
 
 ## License
 
