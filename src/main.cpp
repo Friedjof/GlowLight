@@ -6,6 +6,7 @@
 #include "Controller.h"
 #include "LightService.h"
 #include "DistanceService.h"
+#include "CommunicationService.h"
 
 // modes
 #include "Alert.h"
