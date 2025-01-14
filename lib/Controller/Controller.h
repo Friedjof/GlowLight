@@ -6,7 +6,9 @@
 
 #include "AbstractMode.h"
 #include "Alert.h"
+
 #include "DistanceService.h"
+#include "CommunicationService.h"
 
 
 class Controller {
@@ -19,13 +21,17 @@ class Controller {
     AbstractMode* previousMode = nullptr;
 
     DistanceService* distanceService;
+    CommunicationService* communicationService;
 
+    void enableAlert(uint8_t flashes, CRGB color);
     void enableAlert(uint8_t flashes);
     void disableAlert();
     bool alertEnabled();
 
+    void newConnectionCallback();
+
   public:
-    Controller(DistanceService* distanceService);
+    Controller(DistanceService* distanceService, CommunicationService* communicationService);
 
     void addMode(AbstractMode* mode);
 

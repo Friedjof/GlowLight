@@ -1,7 +1,8 @@
 #include "Controller.h"
 
-Controller::Controller(DistanceService* distanceService) {
+Controller::Controller(DistanceService* distanceService, CommunicationService* communicationService) {
   this->distanceService = distanceService;
+  this->communicationService = communicationService;
 }
 
 void Controller::addMode(AbstractMode* mode) {
@@ -74,6 +75,8 @@ void Controller::setup() {
     return;
   }
 
+  this->communicationService->setNewConnectionCallback(std::bind(&Controller::newConnectionCallback, this));
+
   this->enableAlert(5);
 }
 
@@ -98,7 +101,7 @@ void Controller::loop() {
   }
 }
 
-void Controller::enableAlert(uint8_t flashes) {
+void Controller::enableAlert(uint8_t flashes, CRGB color) {
   if (this->currentMode == this->alertMode) {
     return;
   }
@@ -118,6 +121,7 @@ void Controller::enableAlert(uint8_t flashes) {
 
   this->currentMode = this->alertMode;
 
+  this->alertMode->setColor(color);
   this->alertMode->setFlashes(flashes);
   this->alertMode->first();
 
@@ -126,6 +130,10 @@ void Controller::enableAlert(uint8_t flashes) {
   Serial.print("' by '");
   Serial.print(this->alertMode->getAuthor());
   Serial.println("'");
+}
+
+void Controller::enableAlert(uint8_t flashes) {
+  this->enableAlert(flashes, CRGB(255, 128, 20));
 }
 
 void Controller::disableAlert() {
@@ -156,4 +164,8 @@ void Controller::disableAlert() {
 
 bool Controller::alertEnabled() {
   return this->currentMode == this->alertMode;
+}
+
+void Controller::newConnectionCallback() {
+  this->enableAlert(4, CRGB(0, 255, 0));
 }

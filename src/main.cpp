@@ -20,15 +20,18 @@
 // config
 #include "GlowConfig.h"
 
+// scheduler
+Scheduler scheduler;
 
 // services
 Button2 button;
 
 LightService lightService;
 DistanceService distanceService;
+CommunicationService communicationService(&scheduler);
 
 // controller
-Controller controller(&distanceService);
+Controller controller(&distanceService, &communicationService);
 
 // light modes
 Alert alertMode(&lightService, &distanceService);
@@ -53,6 +56,8 @@ void setup() {
   // setup services
   lightService.setup();
   distanceService.setup();
+  communicationService.setup();
+
   button.begin(BUTTON_PIN);
 
   // set debounce time (this is the time the button needs to be stable before a press is registered)
@@ -98,4 +103,5 @@ void loop() {
   controller.loop();
   lightService.loop();
   distanceService.loop();
+  communicationService.loop();
 }

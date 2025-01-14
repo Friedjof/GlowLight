@@ -71,3 +71,7 @@ bool Alert::setColor(CRGB color) {
 
   return false;
 }
+
+CRGB Alert::getColor() {
+  return this->color;
+}

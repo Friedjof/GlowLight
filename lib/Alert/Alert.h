@@ -22,6 +22,7 @@ class Alert : public AbstractMode {
 
     bool setFlashes(uint8_t flashes);
     bool setColor(CRGB color);
+    CRGB getColor();
 
   private:
     CRGB color = CRGB(255, 128, 20); // Warmer pink
