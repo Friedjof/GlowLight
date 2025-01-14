@@ -54,6 +54,8 @@ class CommunicationService {
 
     // communication
     void sendSyncMessage(String mode, uint16_t option, uint16_t brightness);
+    void sendMode(String mode);
+    void sendOption(uint16_t option);
     void sendBrightness(uint16_t brightness);
 
     bool onNewConnection(std::function<void()> callback);

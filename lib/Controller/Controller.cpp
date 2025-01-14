@@ -53,7 +53,7 @@ void Controller::nextMode() {
 
   this->currentMode->first();
 
-  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
+  this->communicationService->sendMode(this->currentMode->getTitle());
 }
 
 void Controller::setMode(String title) {
@@ -90,7 +90,7 @@ void Controller::nextOption() {
     this->enableAlert(2);
   }
 
-  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
+  this->communicationService->sendOption(this->currentMode->getCurrentOption());
 }
 
 void Controller::setOption(uint8_t option) {
@@ -235,7 +235,14 @@ void Controller::newMessageCallback(uint32_t from, String message) {
     this->setMode(mode);
     this->setOption(option);
     this->currentMode->updateBrightness(brightness);
+  } else if (doc["type"] == "mode") {
+    String mode = doc["mode"];
 
+    this->setMode(mode);
+  } else if (doc["type"] == "option") {
+    uint16_t option = doc["option"];
+
+    this->setOption(option);
   } else if (doc["type"] == "brightness") {
     uint16_t brightness = doc["brightness"];
 

@@ -31,7 +31,7 @@ void CommunicationService::loop() {
   }
 }
 
-// communication
+// communication functions
 void CommunicationService::send(String message, GlowNode node) {
   if (this->mesh != nullptr) {
     this->mesh->sendSingle(node.id, message);
@@ -57,6 +57,30 @@ void CommunicationService::sendSyncMessage(String mode, uint16_t option, uint16_
   doc["mode"] = mode;
   doc["option"] = option;
   doc["brightness"] = brightness;
+
+  String message;
+  serializeJson(doc, message);
+
+  this->broadcast(message);
+}
+
+void CommunicationService::sendMode(String mode) {
+  JsonDocument doc;
+
+  doc["type"] = "mode";
+  doc["mode"] = mode;
+
+  String message;
+  serializeJson(doc, message);
+
+  this->broadcast(message);
+}
+
+void CommunicationService::sendOption(uint16_t option) {
+  JsonDocument doc;
+
+  doc["type"] = "option";
+  doc["option"] = option;
 
   String message;
   serializeJson(doc, message);
