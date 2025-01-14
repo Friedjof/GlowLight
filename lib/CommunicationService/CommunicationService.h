@@ -11,6 +11,10 @@
 struct GlowNode {
   uint32_t id;
   uint32_t lastSeen;
+
+  bool operator==(const GlowNode& other) const {
+    return this->id == other.id;
+  }
 };
 
 class CommunicationService {
@@ -26,15 +30,23 @@ class CommunicationService {
     void changedConnectionsCallback();
     void nodeTimeAdjustedCallback(int32_t offset);
 
+    void addNode(uint32_t id);
+    uint16_t getNode(uint32_t id, GlowNode* node);
+    uint32_t seenNode(uint32_t id);
+    void removeNode(uint32_t id);
+    bool updateNode(uint32_t id);
+    void removeOldNodes();
+    bool nodeExists(uint32_t id);
+
+    void send(String message, GlowNode node);
+    void broadcast(String message);
+
   public:
     CommunicationService(Scheduler* scheduler);
     ~CommunicationService();
 
     void setup();
     void loop();
-
-    void send(String message, GlowNode node);
-    void broadcast(String message);
 
     ArrayList<GlowNode> getNodes();
 
