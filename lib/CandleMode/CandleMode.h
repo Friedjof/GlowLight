@@ -8,7 +8,7 @@
 
 class CandleMode : public AbstractMode {
   public:
-    CandleMode(LightService* lightService, DistanceService* distanceService);
+    CandleMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

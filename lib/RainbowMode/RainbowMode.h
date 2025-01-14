@@ -7,7 +7,7 @@
 
 class RainbowMode : public AbstractMode {
   public:
-    RainbowMode(LightService* lightService, DistanceService* distanceService);
+    RainbowMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

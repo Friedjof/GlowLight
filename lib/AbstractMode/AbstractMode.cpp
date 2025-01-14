@@ -1,12 +1,9 @@
 #include "AbstractMode.h"
 
-AbstractMode::AbstractMode(LightService* lightService, DistanceService* distanceService) {
+AbstractMode::AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) {
   this->lightService = lightService;
   this->distanceService = distanceService;
-}
-
-AbstractMode::~AbstractMode() {
-  delete this->lightService;
+  this->communicationService = communicationService;
 }
 
 String AbstractMode::getTitle() {
@@ -77,6 +74,19 @@ bool AbstractMode::nextOption() {
   return this->options.get(this->currentOption).alert;
 }
 
+bool AbstractMode::setOption(uint8_t option) {
+  if (this->options.size() == 0 || option >= this->options.size()) {
+    return false;
+  }
+
+  this->currentOption = option;
+
+  this->optionChanged = true;
+  this->optionCalled = false;
+
+  return this->options.get(this->currentOption).alert;
+}
+
 bool AbstractMode::callCurrentOption() {
   if (this->options.size() == 0 || this->currentOption >= this->options.size()) {
     return false;
@@ -115,7 +125,11 @@ bool AbstractMode::optionHasChanged() {
 }
 
 bool AbstractMode::setBrightness() {
-  if (!this->distanceService->objectPresent() || this->distanceService->fixed()) {
+  if (this->distanceService->hasObjectDisappeared()) {
+    this->communicationService->sendBrightness(this->brightness);
+  }
+
+  if (!this->distanceService->isObjectPresent() || this->distanceService->fixed()) {
     return false;
   }
 
@@ -176,7 +190,6 @@ uint16_t AbstractMode::invExpNormalize(uint16_t input, uint16_t min, uint16_t ma
   double linearPart = normalized * levels;
   return (uint16_t)((1.0 - factor) * linearPart + factor * expPart);
 }
-
 
 void AbstractMode::loop() {
   this->currentResult = this->distanceService->getResult();

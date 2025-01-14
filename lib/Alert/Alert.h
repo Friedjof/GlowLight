@@ -8,7 +8,7 @@
 
 class Alert : public AbstractMode {
   public:
-    Alert(LightService* lightService, DistanceService* distanceService);
+    Alert(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

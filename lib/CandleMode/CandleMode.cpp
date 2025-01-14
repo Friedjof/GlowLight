@@ -1,6 +1,6 @@
 #include "CandleMode.h"
 
-CandleMode::CandleMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+CandleMode::CandleMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Candle Light";
   this->description = "This produces a candle light effect";
   this->author = "Friedjof Noweck";
@@ -49,7 +49,7 @@ void CandleMode::customClick() {
 }
 
 bool CandleMode::newSpeed() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 

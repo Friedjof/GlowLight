@@ -8,7 +8,7 @@
 
 class ColorPickerMode : public AbstractMode {
   public:
-    ColorPickerMode(LightService* lightService, DistanceService* distanceService);
+    ColorPickerMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

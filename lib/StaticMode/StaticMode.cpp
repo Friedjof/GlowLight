@@ -1,6 +1,6 @@
 #include "StaticMode.h"
 
-StaticMode::StaticMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+StaticMode::StaticMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Static Light";
   this->description = "This produces constant light";
   this->author = "Friedjof Noweck";

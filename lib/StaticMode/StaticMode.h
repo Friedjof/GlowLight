@@ -9,7 +9,7 @@
 
 class StaticMode : public AbstractMode {
   public:
-    StaticMode(LightService* lightService, DistanceService* distanceService);
+    StaticMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

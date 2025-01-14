@@ -1,6 +1,6 @@
 #include "Alert.h"
 
-Alert::Alert(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+Alert::Alert(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Alert";
   this->description = "Flashing alert mode";
   this->author = "Friedjof Noweck";

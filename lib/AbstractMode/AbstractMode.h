@@ -7,6 +7,7 @@
 
 #include "LightService.h"
 #include "DistanceService.h"
+#include "CommunicationService.h"
 
 #include "GlowConfig.h"
 
@@ -43,6 +44,7 @@ class AbstractMode {
 
 		LightService* lightService;
 		DistanceService* distanceService;
+		CommunicationService* communicationService;
 
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};
@@ -57,8 +59,7 @@ class AbstractMode {
 		bool recallCurrentOption();
 
 	public:
-		AbstractMode(LightService* lightService, DistanceService* distanceService);
-		~AbstractMode();
+		AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
 		String getTitle();
 		String getDescription();
@@ -80,6 +81,7 @@ class AbstractMode {
 		uint8_t getCurrentOption();
 		uint8_t getNumberOfOptions();
 		bool nextOption();
+		bool setOption(uint8_t option);
 
 		void loop();
 		void first();

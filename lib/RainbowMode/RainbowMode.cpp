@@ -1,6 +1,6 @@
 #include "RainbowMode.h"
 
-RainbowMode::RainbowMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+RainbowMode::RainbowMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Rainbow";
   this->description = "Rainbow mode";
   this->author = "Friedjof Noweck";
@@ -44,7 +44,7 @@ void RainbowMode::customClick() {
 }
 
 bool RainbowMode::newSaturation() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
@@ -60,7 +60,7 @@ bool RainbowMode::newSaturation() {
 }
 
 bool RainbowMode::newSpeed() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 

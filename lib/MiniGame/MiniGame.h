@@ -5,7 +5,7 @@
 
 class MiniGame : public AbstractMode {
   public:
-    MiniGame(LightService *lightService, DistanceService *distanceService);
+    MiniGame(LightService *lightService, DistanceService *distanceService, CommunicationService *communicationService);
 
     void setup();
 

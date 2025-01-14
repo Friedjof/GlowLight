@@ -1,6 +1,6 @@
 #include "MiniGame.h"
 
-MiniGame::MiniGame(LightService *lightService, DistanceService *distanceService) : AbstractMode(lightService, distanceService) {
+MiniGame::MiniGame(LightService *lightService, DistanceService *distanceService, CommunicationService *communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "MiniGame";
   this->description = "With this game you can test your reaction time";
   this->author = "Friedjof Noweck";
@@ -76,7 +76,7 @@ void MiniGame::customClick() {
 }
 
 bool MiniGame::newSpeed() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 

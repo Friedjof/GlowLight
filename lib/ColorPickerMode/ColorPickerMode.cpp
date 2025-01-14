@@ -1,6 +1,6 @@
 #include "ColorPickerMode.h"
 
-ColorPickerMode::ColorPickerMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+ColorPickerMode::ColorPickerMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Color Picker";
   this->description = "Color picker mode";
   this->author = "Friedjof Noweck";
@@ -38,7 +38,7 @@ void ColorPickerMode::customClick() {
 }
 
 bool ColorPickerMode::newHue() {
-  if (!this->distanceService->objectPresent() || this->fixed) {
+  if (!this->distanceService->isObjectPresent() || this->fixed) {
     return false;
   }
 
@@ -54,7 +54,7 @@ bool ColorPickerMode::newHue() {
 }
 
 bool ColorPickerMode::newSaturation() {
-  if (!this->distanceService->objectPresent() || this->fixed) {
+  if (!this->distanceService->isObjectPresent() || this->fixed) {
     return false;
   }
 

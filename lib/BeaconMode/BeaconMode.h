@@ -10,7 +10,7 @@
 
 class BeaconMode : public AbstractMode {
   public:
-    BeaconMode(LightService* lightService, DistanceService* distanceService);
+    BeaconMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 

@@ -1,6 +1,6 @@
 #include "BeaconMode.h"
 
-BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Beacon";
   this->description = "This mode simulates a beacon";
   this->author = "Friedjof Noweck";
@@ -49,7 +49,7 @@ void BeaconMode::customClick() {
 }
 
 bool BeaconMode::newSpeed() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
@@ -67,7 +67,7 @@ bool BeaconMode::newSpeed() {
 }
 
 bool BeaconMode::newHueOne() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
@@ -83,7 +83,7 @@ bool BeaconMode::newHueOne() {
 }
 
 bool BeaconMode::newHueTwo() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
