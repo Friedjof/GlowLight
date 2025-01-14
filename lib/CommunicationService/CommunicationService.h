@@ -21,7 +21,9 @@ class CommunicationService {
   private:
     painlessMesh* mesh = new painlessMesh();
     Scheduler* scheduler = nullptr;
+
     std::function<void()> alertCallback = nullptr;
+    std::function<void(uint32_t, String&)> receivedControllerCallback = nullptr;
 
     ArrayList<GlowNode> nodes;
 
@@ -50,7 +52,12 @@ class CommunicationService {
 
     ArrayList<GlowNode> getNodes();
 
-    bool setNewConnectionCallback(std::function<void()> callback);
+    // communication
+    void sendSyncMessage(String mode, uint16_t option, uint16_t brightness);
+    void sendBrightness(uint16_t brightness);
+
+    bool onNewConnection(std::function<void()> callback);
+    bool onReceived(std::function<void(uint32_t, String&)> callback);
 };
 
 #endif

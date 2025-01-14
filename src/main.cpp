@@ -34,13 +34,13 @@ CommunicationService communicationService(&scheduler);
 Controller controller(&distanceService, &communicationService);
 
 // light modes
-Alert alertMode(&lightService, &distanceService);
-StaticMode staticMode(&lightService, &distanceService);
-ColorPickerMode colorPickerMode(&lightService, &distanceService);
-RainbowMode rainbowMode(&lightService, &distanceService);
-BeaconMode beaconMode(&lightService, &distanceService);
-CandleMode candleMode(&lightService, &distanceService);
-MiniGame miniGame(&lightService, &distanceService);
+Alert alertMode(&lightService, &distanceService, &communicationService);
+StaticMode staticMode(&lightService, &distanceService, &communicationService);
+ColorPickerMode colorPickerMode(&lightService, &distanceService, &communicationService);
+RainbowMode rainbowMode(&lightService, &distanceService, &communicationService);
+BeaconMode beaconMode(&lightService, &distanceService, &communicationService);
+CandleMode candleMode(&lightService, &distanceService, &communicationService);
+MiniGame miniGame(&lightService, &distanceService, &communicationService);
 
 /*
  * This is the main setup function; it is called only once during startup.

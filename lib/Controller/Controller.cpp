@@ -21,6 +21,14 @@ void Controller::setAlertMode(Alert* mode) {
   this->alertMode = mode;
 }
 
+void Controller::printSwitchedMode(AbstractMode* mode) {
+  Serial.print("[INFO] Switched to mode '");
+  Serial.print(mode->getTitle());
+  Serial.print("' by '");
+  Serial.print(mode->getAuthor());
+  Serial.println("'");
+}
+
 void Controller::nextMode() {
   if (this->currentMode != nullptr) {
     this->currentMode->last();
@@ -41,13 +49,38 @@ void Controller::nextMode() {
 
   this->previousMode = mode;
 
-  Serial.print("[INFO] Switched to mode '");
-  Serial.print(this->currentMode->getTitle());
-  Serial.print("' by '");
-  Serial.print(this->currentMode->getAuthor());
-  Serial.println("'");
+  this->printSwitchedMode(this->currentMode);
 
   this->currentMode->first();
+
+  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
+}
+
+void Controller::setMode(String title) {
+  if (this->currentMode != nullptr) {
+    this->currentMode->last();
+  }
+
+  AbstractMode* mode = this->currentMode;
+
+  for (int i = 0; i < this->modes.size(); i++) {
+    if (this->modes.get(i)->getTitle() == title) {
+      this->currentMode = this->modes.get(i);
+      this->currentModeIndex = i;
+
+      this->previousMode = mode;
+
+      this->printSwitchedMode(this->currentMode);
+
+      this->currentMode->first();
+
+      return;
+    }
+  }
+
+  Serial.print("[ERROR] Mode '");
+  Serial.print(title);
+  Serial.println("' not found");
 }
 
 void Controller::nextOption() {
@@ -56,6 +89,18 @@ void Controller::nextOption() {
   if (alertEnabled) {
     this->enableAlert(2);
   }
+
+  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
+}
+
+void Controller::setOption(uint8_t option) {
+  bool alertEnabled = this->currentMode->setOption(option);
+
+  if (alertEnabled) {
+    this->enableAlert(2);
+  }
+
+  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
 }
 
 void Controller::customClick() {
@@ -75,7 +120,10 @@ void Controller::setup() {
     return;
   }
 
-  this->communicationService->setNewConnectionCallback(std::bind(&Controller::newConnectionCallback, this));
+  this->communicationService->onNewConnection(std::bind(&Controller::newConnectionCallback, this));
+  this->communicationService->onReceived(std::bind(&Controller::newMessageCallback, this, std::placeholders::_1, std::placeholders::_2));
+
+  Serial.println("[INFO] Controller initialized");
 
   this->enableAlert(5);
 }
@@ -168,4 +216,31 @@ bool Controller::alertEnabled() {
 
 void Controller::newConnectionCallback() {
   this->enableAlert(4, CRGB(0, 255, 0));
+}
+
+void Controller::newMessageCallback(uint32_t from, String message) {
+  JsonDocument doc;
+
+  DeserializationError error = deserializeJson(doc, message);
+
+  if (error) {
+    Serial.print("[ERROR] deserializeJson() failed: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  if (doc["type"] == "sync") {
+    String mode = doc["mode"];
+    uint16_t option = doc["option"];
+    uint16_t brightness = doc["brightness"];
+
+    this->setMode(mode);
+    this->setOption(option);
+    this->currentMode->updateBrightness(brightness);
+
+  } else if (doc["type"] == "brightness") {
+    uint16_t brightness = doc["brightness"];
+
+    this->currentMode->updateBrightness(brightness);
+  }
 }

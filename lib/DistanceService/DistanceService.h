@@ -33,7 +33,11 @@ class DistanceService {
     bool fixed();
     bool changing();
     bool released();
-    bool objectPresent();
+
+    bool isObjectPresent();
+    bool isObjectPresent(uint16_t distance);
+    bool hasObjectDisappeared();
+
     bool alert();
 
   private:
@@ -47,6 +51,8 @@ class DistanceService {
     uint64_t lastChange = 0;
 
     bool sensorPresent = false;
+    bool objectPresent = false;
+    bool objectDisappeared = false;
 };
 
 #endif

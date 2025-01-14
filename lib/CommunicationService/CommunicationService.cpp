@@ -50,6 +50,32 @@ void CommunicationService::broadcast(String message) {
   }
 }
 
+void CommunicationService::sendSyncMessage(String mode, uint16_t option, uint16_t brightness) {
+  JsonDocument doc;
+
+  doc["type"] = "sync";
+  doc["mode"] = mode;
+  doc["option"] = option;
+  doc["brightness"] = brightness;
+
+  String message;
+  serializeJson(doc, message);
+
+  this->broadcast(message);
+}
+
+void CommunicationService::sendBrightness(uint16_t brightness) {
+  JsonDocument doc;
+
+  doc["type"] = "brightness";
+  doc["brightness"] = brightness;
+
+  String message;
+  serializeJson(doc, message);
+
+  this->broadcast(message);
+}
+
 // manage nodes
 void CommunicationService::addNode(uint32_t id) {
   GlowNode newNode = { id, millis() };
@@ -142,6 +168,14 @@ ArrayList<GlowNode> CommunicationService::getNodes() {
 // callbacks
 void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   Serial.printf("[INFO] Message received from %u: %s\n", from, msg.c_str());
+
+  if (this->receivedControllerCallback != nullptr) {
+    this->receivedControllerCallback(from, msg);
+  } else {
+    Serial.println("[ERROR] No callback for received message");
+  }
+
+  this->updateNode(from);
 }
 
 void CommunicationService::newConnectionCallback(uint32_t nodeId) {
@@ -156,8 +190,14 @@ void CommunicationService::changedConnectionsCallback() {
   Serial.println("[INFO] Connections changed");
 }
 
-bool CommunicationService::setNewConnectionCallback(std::function<void()> callback) {
+bool CommunicationService::onNewConnection(std::function<void()> callback) {
   this->alertCallback = callback;
+
+  return true;
+}
+
+bool CommunicationService::onReceived(std::function<void(uint32_t, String&)> callback) {
+  this->receivedControllerCallback = callback;
 
   return true;
 }

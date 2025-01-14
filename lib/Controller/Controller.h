@@ -28,7 +28,10 @@ class Controller {
     void disableAlert();
     bool alertEnabled();
 
+    void printSwitchedMode(AbstractMode* mode);
+
     void newConnectionCallback();
+    void newMessageCallback(uint32_t from, String message);
 
   public:
     Controller(DistanceService* distanceService, CommunicationService* communicationService);
@@ -38,7 +41,9 @@ class Controller {
     void setAlertMode(Alert* mode);
 
     void nextMode();
+    void setMode(String title);
     void nextOption();
+    void setOption(uint8_t option);
     void customClick();
 
     void setup();
