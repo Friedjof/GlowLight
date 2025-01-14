@@ -99,8 +99,6 @@ void Controller::setOption(uint8_t option) {
   if (alertEnabled) {
     this->enableAlert(2);
   }
-
-  this->communicationService->sendSyncMessage(this->currentMode->getTitle(), this->currentMode->getCurrentOption(), this->currentMode->getBrightness());
 }
 
 void Controller::customClick() {
