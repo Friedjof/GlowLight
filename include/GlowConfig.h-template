@@ -4,12 +4,19 @@
 #define LED_MAX_BRIGHTNESS 255
 #define LED_DEFAULT_BRIGHTNESS 128
 
-#define LED_UPDATE_STEPS 30
+#define LED_UPDATE_STEPS 20
 #define LED_UPDATE_STEPS_MIN 5
 #define LED_UPDATE_STEPS_MAX 55
 
 // Button
 #define BUTTON_PIN 4
+
+// CommunicationService
+// TODO: change MESH_PREFIX and MESH_PASSWORD
+#define MESH_PREFIX "GlowMesh"
+#define MESH_PASSWORD "GlowMesh"
+#define MESH_PORT 5555
+#define GLOW_NODE_TIMEOUT 10000
 
 // DistanceService
 #define DISTANCE_SENSOR_SDA 6
@@ -30,6 +37,8 @@
 #define DISTANCE_HOLD_STATUS 0x02
 #define DISTANCE_RELEASE_STATUS 0x00
 #define DISTANCE_CHANGING_STATUS 0x01
+
+#define QUICK_WIPE_INTERVAL 100
 
 // Alert
 #define ALERT_NUM_FLASHES 5
