@@ -153,6 +153,49 @@ bool AbstractMode::resetBrightness() {
   return true;
 }
 
+
+// set variables
+void AbstractMode::setVar(String key, String value) {
+  this->registry[key] = value;
+}
+
+void AbstractMode::setVar(String key, uint16_t value) {
+  this->registry[key] = value;
+}
+
+void AbstractMode::setVar(String key, int value) {
+  this->registry[key] = value;
+}
+
+void AbstractMode::setVar(String key, double value) {
+  this->registry[key] = value;
+}
+
+void AbstractMode::setVar(String key, bool value) {
+  this->registry[key] = value;
+}
+
+String AbstractMode::getVar(String key) {
+  return this->registry[key];
+}
+
+uint16_t AbstractMode::getVar(String key) {
+  return this->registry[key];
+}
+
+int AbstractMode::getVar(String key) {
+  return this->registry[key];
+}
+
+double AbstractMode::getVar(String key) {
+  return this->registry[key];
+}
+
+bool AbstractMode::getVar(String key) {
+  return this->registry[key];
+}
+
+
 bool AbstractMode::updateBrightness(uint16_t brightness) {
   if (brightness == this->brightness) {
     return false;

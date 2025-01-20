@@ -47,7 +47,7 @@ class AbstractMode {
 		DistanceService* distanceService;
 		CommunicationService* communicationService;
 
-		JsonDocument<1024> configuration;
+		JsonDocument registry;
 
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};
@@ -85,6 +85,15 @@ class AbstractMode {
 		uint8_t getNumberOfOptions();
 		bool nextOption();
 		bool setOption(uint8_t option);
+
+		void setVar(String key, String value);
+		void setVar(String key, uint16_t value);
+		void getVar(String key, double value);
+		void getVar(String key, bool value);
+		String getVar(String key);
+		uint16_t getVar(String key);
+		double getVar(String key);
+		bool getVar(String key);
 
 		void loop();
 		void first();
