@@ -2,6 +2,8 @@
 #define COMMUNICATIONSERVICE_H
 
 #include <Arduino.h>
+#include <time.h>
+
 #include <ArrayList.h>
 #include <ArduinoJson.h>
 #include <painlessMesh.h>
@@ -39,6 +41,10 @@ class CommunicationService {
     bool updateNode(uint32_t id);
     void removeOldNodes();
     bool nodeExists(uint32_t id);
+
+    // time
+    uint64_t getTimestamp();
+    void setTimestamp(uint64_t timestamp);
 
     void send(String message, GlowNode node);
     void broadcast(String message);

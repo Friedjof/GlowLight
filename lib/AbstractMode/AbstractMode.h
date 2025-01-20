@@ -2,6 +2,7 @@
 #define ABSTRACTMODE_H
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <ArrayList.h>
 #include <functional>
 
@@ -45,6 +46,8 @@ class AbstractMode {
 		LightService* lightService;
 		DistanceService* distanceService;
 		CommunicationService* communicationService;
+
+		JsonDocument<1024> configuration;
 
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};

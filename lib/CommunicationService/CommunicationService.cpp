@@ -17,6 +17,11 @@ void CommunicationService::setup() {
   if (this->mesh != nullptr) {
     this->mesh->init(MESH_PREFIX, MESH_PASSWORD, this->scheduler, MESH_PORT);
 
+    // set rtc time to 0
+    this->setTimestamp(0);
+    Serial.println("[INFO] RTC time initialized");
+
+    // initialize mesh
     this->mesh->onReceive(std::bind(&CommunicationService::receivedCallback, this, std::placeholders::_1, std::placeholders::_2));
     this->mesh->onNewConnection(std::bind(&CommunicationService::newConnectionCallback, this, std::placeholders::_1));
     this->mesh->onChangedConnections(std::bind(&CommunicationService::changedConnectionsCallback, this));
@@ -98,6 +103,16 @@ void CommunicationService::sendBrightness(uint16_t brightness) {
   serializeJson(doc, message);
 
   this->broadcast(message);
+}
+
+// time functions
+uint64_t CommunicationService::getTimestamp() {
+  return (uint64_t)time(nullptr);
+}
+
+void CommunicationService::setTimestamp(uint64_t timestamp) {
+  struct timeval tv = { static_cast<time_t>(timestamp), 0 };
+  settimeofday(&tv, nullptr);
 }
 
 // manage nodes
