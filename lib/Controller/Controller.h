@@ -30,18 +30,20 @@ class Controller {
 
     void printSwitchedMode(AbstractMode* mode);
 
+    void event();
+
     void newConnectionCallback();
-    void newMessageCallback(uint32_t from, String message);
+    void newMessageCallback(uint32_t from, JsonDocument doc, MessageType type);
 
   public:
     Controller(DistanceService* distanceService, CommunicationService* communicationService);
 
-    void addMode(AbstractMode* mode);
-
     void setAlertMode(Alert* mode);
 
+    void addMode(AbstractMode* mode);
     void nextMode();
     void setMode(String title);
+
     void nextOption();
     void setOption(uint8_t option);
     void customClick();

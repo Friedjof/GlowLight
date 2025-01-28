@@ -5,13 +5,14 @@ Controller::Controller(DistanceService* distanceService, CommunicationService* c
   this->communicationService = communicationService;
 }
 
+// mode functions
 void Controller::addMode(AbstractMode* mode) {
   Serial.print("[INFO] Added mode '");
   Serial.print(mode->getTitle());
   Serial.println("'");
 
-  // setup mode
-  mode->setup();
+  // mode setup function
+  mode->modeSetup();
 
   // add mode to mode list
   this->modes.add(mode);
@@ -53,7 +54,7 @@ void Controller::nextMode() {
 
   this->currentMode->first();
 
-  this->communicationService->sendMode(this->currentMode->getTitle());
+  this->event();
 }
 
 void Controller::setMode(String title) {
@@ -83,14 +84,15 @@ void Controller::setMode(String title) {
   Serial.println("' not found");
 }
 
+// option functions
 void Controller::nextOption() {
   bool alertEnabled = this->currentMode->nextOption();
+
+  this->event();
 
   if (alertEnabled) {
     this->enableAlert(2);
   }
-
-  this->communicationService->sendOption(this->currentMode->getCurrentOption());
 }
 
 void Controller::setOption(uint8_t option) {
@@ -101,12 +103,16 @@ void Controller::setOption(uint8_t option) {
   }
 }
 
+// custom click function
 void Controller::customClick() {
   Serial.println("[DEBUG] Custom click");
 
   this->currentMode->customClick();
+
+  this->event();
 }
 
+// main functions
 void Controller::setup() {
   if (this->alertMode == nullptr) {
     Serial.println("[ERROR] Alert mode is null");
@@ -119,7 +125,7 @@ void Controller::setup() {
   }
 
   this->communicationService->onNewConnection(std::bind(&Controller::newConnectionCallback, this));
-  this->communicationService->onReceived(std::bind(&Controller::newMessageCallback, this, std::placeholders::_1, std::placeholders::_2));
+  this->communicationService->onReceived(std::bind(&Controller::newMessageCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   Serial.println("[INFO] Controller initialized");
 
@@ -145,8 +151,13 @@ void Controller::loop() {
   if (this->alertEnabled() && !this->alertMode->isFlashing()) {
     this->disableAlert();
   }
+
+  if (this->distanceService->hasObjectDisappeared()) {
+    this->event();
+  }
 }
 
+// alert functions
 void Controller::enableAlert(uint8_t flashes, CRGB color) {
   if (this->currentMode == this->alertMode) {
     return;
@@ -212,40 +223,60 @@ bool Controller::alertEnabled() {
   return this->currentMode == this->alertMode;
 }
 
+// communication functions
 void Controller::newConnectionCallback() {
   this->enableAlert(4, CRGB(0, 255, 0));
+
+  this->communicationService->sendSync(millis());
 }
 
-void Controller::newMessageCallback(uint32_t from, String message) {
-  JsonDocument doc;
+void Controller::newMessageCallback(uint32_t from, JsonDocument message, MessageType type) {
+  if (type == MessageType::EVENT) {
+    // the EVENT message will be triggered if a change on another node is detected
 
-  DeserializationError error = deserializeJson(doc, message);
+    // check if the event has the correct format
+    if (!message["title"].is<String>() || !message["version"].is<String>()) {
+      Serial.println("[ERROR] Invalid message event format, ignoring message");
+      return;
+    }
 
-  if (error) {
-    Serial.print("[ERROR] deserializeJson() failed: ");
-    Serial.println(error.c_str());
-    return;
+    Serial.println("[DEBUG] Event message received");
+
+    // check if the mode has changed
+    if (message["title"].as<String>() != this->currentMode->getTitle()) {
+      this->setMode(message["title"].as<String>());
+    }
+
+    // deserialize the event
+    this->currentMode->deserialize(message);
+  } else if (type == MessageType::SYNC) {
+    /* The SYNC message will be triggered if a new node is detected:
+     * - 'timestamp' holds the current value from the sender GlowNode
+     * - The node with the highest timestamp will send the current state to the other GlowNode
+     * - In the case of equal timestamps, no action will be taken (very unlikely)
+     */
+
+    // check if the sync has the correct format
+    if (!message["timestamp"].is<uint64_t>()) {
+      Serial.println("[ERROR] Invalid message sync format, ignoring message");
+      return;
+    }
+
+    Serial.println("[DEBUG] Sync message received");
+
+    // if the new GlowNode is younger, it will send the current state
+    if (message["timestamp"].as<uint64_t>() < millis()) {
+      Serial.println("[DEBUG] this GlowNode is older and will send the current state");
+      this->event();
+    } else {
+      Serial.println("[DEBUG] this GlowNode will not send the current state");
+    }
+
+  } else {
+    Serial.println("[ERROR] Invalid message type, ignoring message");
   }
+}
 
-  if (doc["type"] == "sync") {
-    String mode = doc["mode"];
-    uint16_t option = doc["option"];
-    uint16_t brightness = doc["brightness"];
-
-    this->setMode(mode);
-    this->setOption(option);
-    this->currentMode->updateBrightness(brightness);
-  } else if (doc["type"] == "mode") {
-    String mode = doc["mode"];
-
-    this->setMode(mode);
-  } else if (doc["type"] == "option") {
-    uint16_t option = doc["option"];
-
-    this->setOption(option);
-  } else if (doc["type"] == "brightness") {
-    uint16_t brightness = doc["brightness"];
-
-    this->currentMode->updateBrightness(brightness);
-  }
+void Controller::event() {
+  this->communicationService->sendEvent(this->currentMode->serialize());
 }

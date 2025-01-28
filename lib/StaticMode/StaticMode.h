@@ -17,6 +17,8 @@ class StaticMode : public AbstractMode {
     void customLoop();
     void last();
 
+    void fill(CRGB color);
+
     void customClick();
 
   private:

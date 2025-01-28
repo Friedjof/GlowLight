@@ -34,6 +34,8 @@ void CommunicationService::loop() {
   if (this->mesh != nullptr) {
     this->mesh->update();
   }
+
+  this->removeOldNodes();
 }
 
 // communication functions
@@ -47,62 +49,45 @@ void CommunicationService::send(String message, GlowNode node) {
 }
 
 void CommunicationService::broadcast(String message) {
+  if (this->nodes.size() == 0) {
+    Serial.println("[DEBUG] No nodes available, cannot broadcast message");
+    return;
+  }
+
   if (mesh != nullptr) {
     mesh->sendBroadcast(message);
-    Serial.printf("[INFO] Broadcast message sent: %s\n", message.c_str());
+    Serial.printf("[DEBUG] Broadcast message sent: %s\n", message.c_str());
   } else {
     Serial.println("[ERROR] Mesh is not initialized");
   }
 }
 
-void CommunicationService::sendSyncMessage(String mode, uint16_t option, uint16_t brightness) {
-  JsonDocument doc;
+void CommunicationService::sendEvent(JsonDocument event) {
+  JsonDocument message;
 
-  doc["type"] = "sync";
-  doc["mode"] = mode;
-  doc["option"] = option;
-  doc["brightness"] = brightness;
+  message["type"] = MessageType::EVENT;
+  message["message"] = event;
 
-  String message;
-  serializeJson(doc, message);
+  String msg;
+  serializeJson(message, msg);
 
-  this->broadcast(message);
+  this->broadcast(msg);
+
+  Serial.println("[DEBUG] Event message sent");
 }
 
-void CommunicationService::sendMode(String mode) {
-  JsonDocument doc;
+void CommunicationService::sendSync(uint64_t timestamp) {
+  JsonDocument message;
 
-  doc["type"] = "mode";
-  doc["mode"] = mode;
+  message["type"] = MessageType::SYNC;
+  message["message"]["timestamp"] = timestamp;
 
-  String message;
-  serializeJson(doc, message);
+  String msg;
+  serializeJson(message, msg);
 
-  this->broadcast(message);
-}
+  this->broadcast(msg);
 
-void CommunicationService::sendOption(uint16_t option) {
-  JsonDocument doc;
-
-  doc["type"] = "option";
-  doc["option"] = option;
-
-  String message;
-  serializeJson(doc, message);
-
-  this->broadcast(message);
-}
-
-void CommunicationService::sendBrightness(uint16_t brightness) {
-  JsonDocument doc;
-
-  doc["type"] = "brightness";
-  doc["brightness"] = brightness;
-
-  String message;
-  serializeJson(doc, message);
-
-  this->broadcast(message);
+  Serial.println("[DEBUG] Sync message sent");
 }
 
 // time functions
@@ -168,6 +153,8 @@ void CommunicationService::removeOldNodes() {
   for (int i = 0; i < this->nodes.size(); i++) {
     if (millis() - this->nodes.get(i).lastSeen > GLOW_NODE_TIMEOUT) {
       this->nodes.remove(i);
+
+      Serial.printf("[DEBUG] GlowNode %u removed (timeout)\n", this->nodes.get(i).id);
     }
   }
 }
@@ -200,18 +187,31 @@ bool CommunicationService::nodeExists(uint32_t id) {
   return false;
 }
 
-ArrayList<GlowNode> CommunicationService::getNodes() {
-  return nodes;
-}
-
 // callbacks
 void CommunicationService::receivedCallback(uint32_t from, String &msg) {
-  Serial.printf("[INFO] Message received from %u: %s\n", from, msg.c_str());
+  //Serial.printf("[DEBUG] Message received from %u: %s\n", from, msg.c_str());
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, msg);
+
+  if (error) {
+    Serial.print("[ERROR] deserializeJson() failed: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  MessageType type = doc["type"];
+  JsonDocument message = doc["message"];
+
+  if (type >= static_cast<int>(MessageType::MAX)) {
+    Serial.println("[ERROR] Invalid message type, ignoring message");
+    return;
+  }
 
   if (this->receivedControllerCallback != nullptr) {
-    this->receivedControllerCallback(from, msg);
+    this->receivedControllerCallback(from, message, type);
   } else {
-    Serial.println("[ERROR] No callback for received message");
+    Serial.println("[ERROR] No callback for received message, ignoring message");
   }
 
   this->updateNode(from);
@@ -235,7 +235,7 @@ bool CommunicationService::onNewConnection(std::function<void()> callback) {
   return true;
 }
 
-bool CommunicationService::onReceived(std::function<void(uint32_t, String&)> callback) {
+bool CommunicationService::onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback) {
   this->receivedControllerCallback = callback;
 
   return true;

@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <ArrayList.h>
 #include <functional>
+#include <FastLED.h>
 
 #include "LightService.h"
 #include "DistanceService.h"
@@ -88,15 +89,19 @@ class AbstractMode {
 
 		void setVar(String key, String value);
 		void setVar(String key, uint16_t value);
-		void getVar(String key, double value);
-		void getVar(String key, bool value);
-		String getVar(String key);
-		uint16_t getVar(String key);
-		double getVar(String key);
-		bool getVar(String key);
+		void setVar(String key, CRGB value);
+		String getStringVar(String key);
+		uint16_t getUInt16Var(String key);
+		double getDoubleVar(String key);
+		bool getBoolVar(String key);
+		CRGB getCRGBVar(String key);
+
+		JsonDocument serialize();
+		void deserialize(JsonDocument doc);
 
 		void loop();
 		void first();
+		void modeSetup();
 
 		virtual void setup() = 0;
 		virtual void customFirst() = 0;

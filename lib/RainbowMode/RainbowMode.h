@@ -24,11 +24,6 @@ class RainbowMode : public AbstractMode {
     uint64_t counter = 0;
 
     uint16_t index = 0;
-
-    uint8_t speed = RAINBOW_SPEED_DEFAULT;
-    uint8_t saturation = RAINBOW_SATURATION_DEFAULT;
-
-    bool stopped = false;
 };
 
 #endif

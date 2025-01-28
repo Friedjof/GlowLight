@@ -12,11 +12,17 @@
 
 struct GlowNode {
   uint32_t id;
-  uint32_t lastSeen;
+  uint64_t lastSeen;
 
   bool operator==(const GlowNode& other) const {
     return this->id == other.id;
   }
+};
+
+enum MessageType {
+  EVENT = 0,
+  SYNC = 1,
+  MAX
 };
 
 class CommunicationService {
@@ -25,7 +31,7 @@ class CommunicationService {
     Scheduler* scheduler = nullptr;
 
     std::function<void()> alertCallback = nullptr;
-    std::function<void(uint32_t, String&)> receivedControllerCallback = nullptr;
+    std::function<void(uint32_t, JsonDocument, MessageType)> receivedControllerCallback = nullptr;
 
     ArrayList<GlowNode> nodes;
 
@@ -59,13 +65,11 @@ class CommunicationService {
     ArrayList<GlowNode> getNodes();
 
     // communication
-    void sendSyncMessage(String mode, uint16_t option, uint16_t brightness);
-    void sendMode(String mode);
-    void sendOption(uint16_t option);
-    void sendBrightness(uint16_t brightness);
+    void sendEvent(JsonDocument event);
+    void sendSync(uint64_t timestamp);
 
     bool onNewConnection(std::function<void()> callback);
-    bool onReceived(std::function<void(uint32_t, String&)> callback);
+    bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback);
 };
 
 #endif
