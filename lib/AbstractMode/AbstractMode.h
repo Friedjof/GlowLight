@@ -2,11 +2,11 @@
 #define ABSTRACTMODE_H
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <ArrayList.h>
 #include <functional>
 #include <FastLED.h>
 
+#include "GlowRegistry.h"
 #include "LightService.h"
 #include "DistanceService.h"
 #include "CommunicationService.h"
@@ -48,7 +48,7 @@ class AbstractMode {
 		DistanceService* distanceService;
 		CommunicationService* communicationService;
 
-		JsonDocument registry;
+		GlowRegistry registry;
 
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};
@@ -86,15 +86,6 @@ class AbstractMode {
 		uint8_t getNumberOfOptions();
 		bool nextOption();
 		bool setOption(uint8_t option);
-
-		void setVar(String key, String value);
-		void setVar(String key, uint16_t value);
-		void setVar(String key, CRGB value);
-		String getStringVar(String key);
-		uint16_t getUInt16Var(String key);
-		double getDoubleVar(String key);
-		bool getBoolVar(String key);
-		CRGB getCRGBVar(String key);
 
 		JsonDocument serialize();
 		void deserialize(JsonDocument doc);

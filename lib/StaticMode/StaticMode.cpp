@@ -10,7 +10,8 @@ StaticMode::StaticMode(LightService* lightService, DistanceService* distanceServ
 }
 
 void StaticMode::setup() {
-  this->setVar("fixed", false);
+  this->registry.init("color", RegistryType::COLOR, CRGB(255, 128, 20));
+  this->registry.init("fixed", RegistryType::BOOL, false);
 
   this->addOption("Warm soft yellow", [this]() {
     this->fill(CRGB(255, 128, 20));
@@ -52,13 +53,13 @@ void StaticMode::customFirst() {
 }
 
 void StaticMode::customLoop() {
-  if (!this->getBoolVar("fixed")) {
+  if (!this->registry.getBool("fixed")) {
     this->setBrightness();
   }
 }
 
 void StaticMode::fill(CRGB color) {
-  this->setVar("color", color);
+  this->registry.setColor("color", color);
   this->lightService->fill(color);
 }
 
@@ -67,6 +68,6 @@ void StaticMode::last() {
 }
 
 void StaticMode::customClick() {
-  Serial.print("[INFO] " + this->getBoolVar("fixed") ? "Fixed" : "Not fixed");
-  this->setVar("fixed", !this->getBoolVar("fixed"));
+  Serial.print("[INFO] " + this->registry.getBool("fixed") ? "Fixed" : "Not fixed");
+  this->registry.setBool("fixed", !this->registry.getBool("fixed"));
 }

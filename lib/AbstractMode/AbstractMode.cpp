@@ -4,8 +4,11 @@ AbstractMode::AbstractMode(LightService* lightService, DistanceService* distance
   this->lightService = lightService;
   this->distanceService = distanceService;
   this->communicationService = communicationService;
+
+  this->registry = GlowRegistry();
 }
 
+// meta functions
 String AbstractMode::getTitle() {
   return this->title;
 }
@@ -30,6 +33,7 @@ String AbstractMode::getLicense() {
   return this->license;
 }
 
+// option functions
 uint8_t AbstractMode::getCurrentOption() {
   return this->currentOption;
 }
@@ -124,6 +128,7 @@ bool AbstractMode::optionHasChanged() {
   return false;
 }
 
+// brightness functions
 bool AbstractMode::setBrightness() {
   if (!this->distanceService->isObjectPresent() || this->distanceService->fixed()) {
     return false;
@@ -149,57 +154,6 @@ bool AbstractMode::resetBrightness() {
   return true;
 }
 
-
-// set variables
-void AbstractMode::setVar(String key, String value) {
-  this->registry[key] = value;
-}
-
-void AbstractMode::setVar(String key, uint16_t value) {
-  this->registry[key] = value;
-}
-
-void AbstractMode::setVar(String key, CRGB value) {
-  String str = "CRGB(" + String(value.r) + ", " + String(value.g) + ", " + String(value.b) + ")";
-  this->registry[key] = str;
-}
-
-// get variables
-String AbstractMode::getStringVar(String key) {
-  return this->registry[key].as<String>();
-}
-
-uint16_t AbstractMode::getUInt16Var(String key) {
-  return this->registry[key].as<uint16_t>();
-}
-
-double AbstractMode::getDoubleVar(String key) {
-  return this->registry[key].as<double>();
-}
-
-bool AbstractMode::getBoolVar(String key) {
-  return this->registry[key].as<bool>();
-}
-
-CRGB AbstractMode::getCRGBVar(String key) {
-  String str = this->registry[key].as<String>();
-
-  int start = str.indexOf("(") + 1;
-  int end = str.indexOf(")");
-
-  String values = str.substring(start, end);
-
-  int firstComma = values.indexOf(",");
-  int secondComma = values.indexOf(",", firstComma + 1);
-
-  int r = values.substring(0, firstComma).toInt();
-  int g = values.substring(firstComma + 1, secondComma).toInt();
-  int b = values.substring(secondComma + 1).toInt();
-
-  return CRGB(r, g, b);
-}
-
-
 // update brightness
 bool AbstractMode::updateBrightness(uint16_t brightness) {
   if (brightness == this->brightness) {
@@ -217,6 +171,7 @@ uint16_t AbstractMode::getBrightness() {
   return this->brightness;
 }
 
+// distance functions
 uint16_t AbstractMode::getLevel() {
   return this->currentResult.level;
 }
@@ -239,54 +194,20 @@ uint16_t AbstractMode::invExpNormalize(uint16_t input, uint16_t min, uint16_t ma
   return (uint16_t)((1.0 - factor) * linearPart + factor * expPart);
 }
 
+// serialize and deserialize
 JsonDocument AbstractMode::serialize() {
-  JsonDocument doc;
+  this->registry.setInt("currentOption", this->currentOption);
+  this->registry.setInt("brightness", this->brightness);
 
-  this->registry["currentOption"] = this->currentOption;
-  this->registry["brightness"] = this->brightness;
-
-  doc["registry"] = this->registry;
-
-  doc["title"] = this->title;
-  doc["version"] = this->version;
-
-  return doc;
+  return this->registry.serialize();
 }
 
 void AbstractMode::deserialize(JsonDocument doc) {
   // check if the title and version match (to prevent deserialization of wrong data for another mode)
-  if (doc["title"].as<String>() != this->title) {
-    Serial.print("[ERROR] The mode title '");
-    Serial.print(doc["title"].as<String>());
-    Serial.print("' does not match with this mode title '");
-    Serial.print(this->title);
-    Serial.println("'. Skipping deserialization");
-    return;
-  } else if (doc["version"].as<String>() != this->version) {
-    Serial.println("[ERROR] Mode Version does not match. Skipping deserialization");
-    return;
-  }
+  this->registry.deserialize(doc);
 
-  this->registry = doc["registry"];
-
-  uint16_t currentOption = this->registry["currentOption"].as<uint8_t>();
-  uint16_t brightness = this->registry["brightness"].as<uint16_t>();
-
-  // check if the current option is valid
-  if (currentOption < this->options.size() && currentOption >= 0) {
-    this->currentOption = currentOption;
-  } else {
-    Serial.println("[ERROR] Invalid option index. Setting to 0");
-    this->currentOption = 0;
-  }
-
-  // check if the brightness is valid
-  if (brightness >= 0 && brightness <= LED_MAX_BRIGHTNESS) {
-    this->updateBrightness(brightness);
-  } else {
-    Serial.println("[ERROR] Invalid brightness value. Setting to default");
-    this->updateBrightness(LED_DEFAULT_BRIGHTNESS);
-  }
+  this->currentOption = this->registry.getInt("currentOption");
+  this->brightness = this->registry.getInt("brightness");
 
   // call the setup function of the derived class
   this->optionChanged = true;
@@ -295,6 +216,7 @@ void AbstractMode::deserialize(JsonDocument doc) {
   Serial.println("[DEBUG] Deserialized data");
 }
 
+// main functions
 void AbstractMode::loop() {
   this->currentResult = this->distanceService->getResult();
 
@@ -313,4 +235,11 @@ void AbstractMode::first() {
 void AbstractMode::modeSetup() {
   // call the setup function of the derived class
   this->setup();
+
+  this->registry.setTitle(this->getTitle());
+  this->registry.setVersion(this->getVersion());
+
+  // initialize the registry
+  this->registry.init("currentOption", RegistryType::INT, 0, 0, this->getNumberOfOptions() - 1);
+  this->registry.init("brightness", RegistryType::INT, LED_DEFAULT_BRIGHTNESS, 0, LED_MAX_BRIGHTNESS);
 }
