@@ -152,9 +152,8 @@ void CommunicationService::removeNode(uint32_t id) {
 void CommunicationService::removeOldNodes() {
   for (int i = 0; i < this->nodes.size(); i++) {
     if (millis() - this->nodes.get(i).lastSeen > GLOW_NODE_TIMEOUT) {
-      this->nodes.remove(i);
-
       Serial.printf("[DEBUG] GlowNode %u removed (timeout)\n", this->nodes.get(i).id);
+      this->nodes.remove(i--);
     }
   }
 }
