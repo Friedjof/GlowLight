@@ -213,6 +213,8 @@ void AbstractMode::deserialize(JsonDocument doc) {
   this->optionChanged = true;
   this->optionCalled = false;
 
+  this->resetBrightness();
+
   Serial.println("[DEBUG] Deserialized data");
 }
 

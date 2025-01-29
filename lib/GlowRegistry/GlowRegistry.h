@@ -7,31 +7,22 @@
 #include <FastLED.h>
 
 
-enum class RegistryType {
-    INT,
-    STRING,
-    BOOL,
-    COLOR
+enum RegistryType {
+    INT = 0,
+    STRING = 1,
+    BOOL = 2,
+    COLOR = 3
 };
-
-
-bool operator==(RegistryType a, RegistryType b) {
-    return static_cast<int>(a) == static_cast<int>(b);
-}
 
 
 class GlowRegistry {
   private:
     JsonDocument registry;
     JsonDocument meta;
-    ArrayList<String> keys;
 
     // helper functions
     String CRGB2Hex(CRGB color);
     CRGB Hex2CRGB(String hex);
-
-    uint16_t type2int(RegistryType type);
-    RegistryType int2type(uint16_t type);
 
   public:
     GlowRegistry();
@@ -68,7 +59,6 @@ class GlowRegistry {
     bool reset(String key);
     uint16_t size();
     bool contains(String key);
-    bool remove(String key);
 
     // serialize and deserialize
     JsonDocument serialize();

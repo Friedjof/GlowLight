@@ -79,75 +79,75 @@ bool GlowRegistry::init(String key, RegistryType type, uint16_t defaultValue) {
 }
 
 bool GlowRegistry::init(String key, RegistryType type, uint16_t defaultValue, uint16_t min, uint16_t max) {
-  if (this->keys.contains(key)) {
+  if (this->contains(key)) {
     Serial.println("[ERROR] Key already initialized");
     return false;
   }
 
-  this->keys.add(key);
-
-  this->meta[key]["type"] = this->type2int(type);
+  this->meta[key]["type"] = type;
   this->meta[key]["min"] = min;
   this->meta[key]["max"] = max;
   this->meta[key]["default"] = defaultValue;
   
   this->registry[key] = defaultValue;
 
+  Serial.printf("[DEBUG] Initialized key '%s' with default value %d\n", key.c_str(), defaultValue);
+
   return this->registry[key] == defaultValue;
 }
 
 bool GlowRegistry::init(String key, RegistryType type, String defaultValue) {
-  if (this->keys.contains(key)) {
+  if (this->contains(key)) {
     Serial.println("[ERROR] Key already initialized");
     return false;
   }
 
-  this->keys.add(key);
-
-  this->meta[key]["type"] = this->type2int(type);
+  this->meta[key]["type"] = type;
   this->meta[key]["default"] = defaultValue;
   
   this->registry[key] = defaultValue;
+
+  Serial.printf("[DEBUG] Initialized key '%s' with value '%s'\n", key.c_str(), defaultValue.c_str());
 
   return this->registry[key] == defaultValue;
 }
 
 bool GlowRegistry::init(String key, RegistryType type, bool defaultValue) {
-  if (this->keys.contains(key)) {
+  if (this->contains(key)) {
     Serial.println("[ERROR] Key already initialized");
     return false;
   }
 
-  this->keys.add(key);
-
-  this->meta[key]["type"] = this->type2int(type);
+  this->meta[key]["type"] = type;
   this->meta[key]["default"] = defaultValue;
   
   this->registry[key] = defaultValue;
+
+  Serial.printf("[DEBUG] Initialized key '%s' with default value %s\n", key.c_str(), defaultValue ? "true" : "false");
 
   return this->registry[key] == defaultValue;
 }
 
 bool GlowRegistry::init(String key, RegistryType type, CRGB defaultValue) {
-  if (this->keys.contains(key)) {
+  if (this->contains(key)) {
     Serial.println("[ERROR] Key already initialized");
     return false;
   }
 
-  this->keys.add(key);
-
-  this->meta[key]["type"] = this->type2int(type);
+  this->meta[key]["type"] = type;
   this->meta[key]["default"] = this->CRGB2Hex(defaultValue);
   
   this->registry[key] = this->CRGB2Hex(defaultValue);
+
+  Serial.printf("[DEBUG] Initialized key '%s' with default value %s\n", key.c_str(), this->CRGB2Hex(defaultValue).c_str());
 
   return this->registry[key] == this->CRGB2Hex(defaultValue);
 }
 
 // get functions
 uint16_t GlowRegistry::getInt(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return 0;
   }
 
@@ -155,8 +155,8 @@ uint16_t GlowRegistry::getInt(String key) {
 }
 
 String GlowRegistry::getString(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return "";
   }
 
@@ -164,8 +164,8 @@ String GlowRegistry::getString(String key) {
 }
 
 bool GlowRegistry::getBool(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -173,8 +173,8 @@ bool GlowRegistry::getBool(String key) {
 }
 
 CRGB GlowRegistry::getColor(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return CRGB(0, 0, 0);
   }
 
@@ -183,8 +183,8 @@ CRGB GlowRegistry::getColor(String key) {
 
 // set functions
 bool GlowRegistry::setInt(String key, uint16_t value) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -202,8 +202,8 @@ bool GlowRegistry::setInt(String key, uint16_t value) {
 }
 
 bool GlowRegistry::setString(String key, String value) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -213,8 +213,8 @@ bool GlowRegistry::setString(String key, String value) {
 }
 
 bool GlowRegistry::setBool(String key, bool value) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -224,8 +224,8 @@ bool GlowRegistry::setBool(String key, bool value) {
 }
 
 bool GlowRegistry::setColor(String key, CRGB value) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -236,8 +236,8 @@ bool GlowRegistry::setColor(String key, CRGB value) {
 
 // other functions
 bool GlowRegistry::reset(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
+  if (!this->contains(key)) {
+    Serial.printf("[ERROR] Key not initialized: %s\n", key.c_str());
     return false;
   }
 
@@ -247,24 +247,11 @@ bool GlowRegistry::reset(String key) {
 }
 
 uint16_t GlowRegistry::size() {
-  return this->keys.size();
+  return this->registry.size();
 }
 
 bool GlowRegistry::contains(String key) {
-  return this->keys.contains(key);
-}
-
-bool GlowRegistry::remove(String key) {
-  if (!this->keys.contains(key)) {
-    Serial.println("[ERROR] Key not initialized");
-    return false;
-  }
-
-  this->keys.remove(this->keys.indexOf(key));
-  this->registry.remove(key);
-  this->meta.remove(key);
-
-  return !this->keys.contains(key);
+  return this->meta[key].is<JsonObject>();
 }
 
 // serialize and deserialize
@@ -298,18 +285,22 @@ bool GlowRegistry::deserialize(JsonDocument doc) {
     return false;
   }
 
-  for (int i = 0; i < this->keys.size(); i++) {
-    String key = this->keys.get(i);
+  JsonObject reg = doc["registry"].as<JsonObject>();
 
-    if (doc[key].is<String>()) {
-      if (this->int2type(this->meta[key]["type"]) == RegistryType::INT) {
-        if (!this->setInt(key, doc[key].as<uint16_t>())) return false;
-      } else if (this->int2type(this->meta[key]["type"]) == RegistryType::STRING) {
-        if (!this->setString(key, doc[key].as<String>())) return false;
-      } else if (this->int2type(this->meta[key]["type"]) == RegistryType::BOOL) {
-        if (!this->setBool(key, doc[key].as<bool>())) return false;
-      } else if (this->int2type(this->meta[key]["type"]) == RegistryType::COLOR) {
-        if (!this->setColor(key, this->Hex2CRGB(doc[key].as<String>()))) return false;
+  for (JsonPair kv : this->registry.as<JsonObject>()) {
+    String key = kv.key().c_str();
+
+    RegistryType type = this->meta[key]["type"];
+
+    if (!reg[key].isNull()) {
+      if (type == RegistryType::INT) {
+        if (!this->setInt(key, reg[key].as<uint16_t>())) return false;
+      } else if (type == RegistryType::STRING) {
+        if (!this->setString(key, reg[key].as<String>())) return false;
+      } else if (type == RegistryType::BOOL) {
+        if (!this->setBool(key, reg[key].as<bool>())) return false;
+      } else if (type == RegistryType::COLOR) {
+        if (!this->setColor(key, this->Hex2CRGB(reg[key].as<String>()))) return false;
       } else {
         Serial.println("[ERROR] Invalid type");
         return false;

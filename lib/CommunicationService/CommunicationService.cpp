@@ -188,7 +188,7 @@ bool CommunicationService::nodeExists(uint32_t id) {
 
 // callbacks
 void CommunicationService::receivedCallback(uint32_t from, String &msg) {
-  //Serial.printf("[DEBUG] Message received from %u: %s\n", from, msg.c_str());
+  Serial.printf("[DEBUG] Message received from %u: %s\n", from, msg.c_str());
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, msg);

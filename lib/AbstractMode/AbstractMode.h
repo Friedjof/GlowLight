@@ -14,7 +14,6 @@
 #include "GlowConfig.h"
 
 
-
 struct option_t {
     String title;
     std::function<void()> callback;
