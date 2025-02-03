@@ -42,6 +42,7 @@ This authentication is necessary to prevent unauthorized access to the mesh netw
 - 3x M3 screws
 
 ### Main Components
+
 ![Main Components](media/images/components/button_sensor_esp32c3_led_mini.png)
 
 ### Tools and Materials

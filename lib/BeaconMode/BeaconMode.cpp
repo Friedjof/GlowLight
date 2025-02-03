@@ -5,11 +5,15 @@ BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceServ
   this->description = "This mode simulates a beacon";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
-  this->version = "1.0.0";
+  this->version = "2.0.0";
   this->license = "MIT";
 }
 
 void BeaconMode::setup() {
+  this->registry.init("hueOne", RegistryType::INT, 0, 0, 255);
+  this->registry.init("hueTwo", RegistryType::INT, 192, 0, 255);
+  this->registry.init("speed", RegistryType::INT, BEACON_SPEED_DEFAULT, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
+
   this->addOption("Speed", [this]() {
     this->newSpeed();
   }, true);
@@ -31,12 +35,12 @@ void BeaconMode::customFirst() {
 }
 
 void BeaconMode::customLoop() {
-  if (this->counter++ % this->speed == 0) {
-    this->setHue(this->position, this->hueOne);
+  if (this->counter++ % this->registry.getInt("speed") == 0) {
+    this->setHue(this->position, this->registry.getInt("hueOne"));
 
     this->position = (this->position + 1) % LED_NUM_LEDS;
 
-    this->setHue((this->position + BEACON_LENGTH_DEFAULT) % LED_NUM_LEDS, this->hueTwo);
+    this->setHue((this->position + BEACON_LENGTH_DEFAULT) % LED_NUM_LEDS, this->registry.getInt("hueTwo"));
   }
 }
 
@@ -57,11 +61,11 @@ bool BeaconMode::newSpeed() {
 
   uint16_t spd = this->expNormalize(level, 0, DISTANCE_LEVELS, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
 
-  if (spd == this->speed) {
+  if (spd == this->registry.getInt("speed")) {
     return false;
   }
 
-  this->speed = spd;
+  this->registry.setInt("speed", spd);
 
   return true;
 }
@@ -71,13 +75,13 @@ bool BeaconMode::newHueOne() {
     return false;
   }
 
-  uint16_t level = this->distance2hue(this->getDistance(), this->hueOne);
+  uint16_t level = this->distance2hue(this->getDistance(), this->registry.getInt("hueOne"));
 
-  if (level == this->hueOne) {
+  if (level == this->registry.getInt("hueOne")) {
     return false;
   }
 
-  this->hueOne = level;
+  this->registry.setInt("hueOne", level);
 
   return true;
 }
@@ -87,13 +91,13 @@ bool BeaconMode::newHueTwo() {
     return false;
   }
 
-  uint16_t level = this->distance2hue(this->getDistance(), this->hueTwo);
+  uint16_t level = this->distance2hue(this->getDistance(), this->registry.getInt("hueTwo"));
 
-  if (level == this->hueTwo) {
+  if (level == this->registry.getInt("hueTwo")) {
     return false;
   }
 
-  this->hueTwo = level;
+  this->registry.setInt("hueTwo", level);
 
   return true;
 }

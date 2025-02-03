@@ -5,11 +5,13 @@ CandleMode::CandleMode(LightService* lightService, DistanceService* distanceServ
   this->description = "This produces a candle light effect";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
-  this->version = "1.0.0";
+  this->version = "2.0.0";
   this->license = "MIT";
 }
 
 void CandleMode::setup() {
+  this->registry.init("speed", RegistryType::INT, CANDLE_SPEED_DEFAULT, CANDLE_SPEED_MIN, CANDLE_SPEED_MAX);
+
   this->colors.add(CRGB(255, 63,  0));  // deep fire red
   this->colors.add(CRGB(255, 87,  17)); // glowing ember
   this->colors.add(CRGB(255, 47,  0));  // intense flame red
@@ -33,7 +35,7 @@ void CandleMode::customLoop() {
     }
   }
 
-  if (millis() % this->speed == 0) {
+  if (millis() % this->registry.getInt("speed") == 0) {
     for (uint8_t i = 0; i < LED_NUM_LEDS; i++) {
       this->lightService->setLed(i, this->colors.get(random(0, this->colors.size())));
     }
@@ -57,11 +59,11 @@ bool CandleMode::newSpeed() {
 
   uint16_t spd = this->expNormalize(level, 0, DISTANCE_LEVELS, CANDLE_SPEED_MAX, .5);
 
-  if (spd == this->speed) {
+  if (spd == this->registry.getInt("speed")) {
     return false;
   }
 
-  this->speed = spd;
+  this->registry.setInt("speed", spd);
 
   return true;
 }

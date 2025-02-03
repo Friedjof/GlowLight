@@ -24,11 +24,6 @@ class BeaconMode : public AbstractMode {
     uint64_t counter = 0;
     uint16_t position = 0;
 
-    uint8_t hueOne = 0;
-    uint8_t hueTwo = 192;
-
-    uint8_t speed = BEACON_SPEED_DEFAULT;
-
     bool smoothTransition = true;
 
     bool newSpeed();

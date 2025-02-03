@@ -22,11 +22,6 @@ class ColorPickerMode : public AbstractMode {
     bool newSaturation();
 
     uint16_t distance2hue(uint16_t distance);
-
-  private:
-    uint64_t hue = 0;
-    uint8_t saturation = 255;
-    bool fixed = false;
 };
 
 #endif
