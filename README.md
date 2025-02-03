@@ -19,6 +19,17 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
 
+## Communication (NEW)
+
+![Communication](media/images/diagrams/communication.png)
+
+[-> Mesh Network Demo Video](media/images/demo/3_lamps_communication.mp4)
+
+Now you can configure an mesh network between the lamps. The lamps can communicate with each other and synchronize the modes. The communication is done using the `PainlessMesh` library.
+
+You can set the mesh ssid and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`.
+This authentication is necessary to prevent unauthorized access to the mesh network and with this you can split the network in different groups.
+
 ## Hardware Components
 
 - DUBEUYEW ESP32-C3 Development Board Mini

@@ -1,3 +1,10 @@
+/*
+ * AbstractMode.h
+ * This is the abstract class for all modes.
+ * It provides the basic structure for all modes and handles the options and brightness as basic features.
+ * It also provides some helper functions for normalizing and denormalizing values.
+ */
+
 #ifndef ABSTRACTMODE_H
 #define ABSTRACTMODE_H
 

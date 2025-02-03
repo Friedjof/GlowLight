@@ -1,3 +1,7 @@
+/*
+ * GlowRegistry.h - A simple registry for storing settings in EEPROM
+ */
+
 #ifndef REGISTRY_H
 #define REGISTRY_H
 
