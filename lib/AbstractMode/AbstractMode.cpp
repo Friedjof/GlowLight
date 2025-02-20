@@ -140,13 +140,7 @@ bool AbstractMode::setBrightness() {
     if (!this->distanceService->hasWipeDetected()) {
       brightness = this->expNormalize(this->currentResult.level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, .5);
     } else {
-      if (this->brightness == LED_MAX_BRIGHTNESS) {
-        brightness = LED_MIN_BRIGHTNESS;
-      } else if (this->brightness == LED_MIN_BRIGHTNESS) {
-        brightness = LED_MAX_BRIGHTNESS;
-      } else {
-        brightness = this->distanceService->getNumberOfWipes() % 2 == 0 ? LED_MIN_BRIGHTNESS : LED_MAX_BRIGHTNESS;
-      }
+      brightness = this->distanceService->getNumberOfWipes() % 2 == 0 ? LED_MIN_BRIGHTNESS : LED_MAX_BRIGHTNESS;
     }
 
     this->lightService->setBrightness(brightness);

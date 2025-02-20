@@ -61,6 +61,7 @@ class DistanceService {
 
     bool wipeDetected = false;
     uint16_t numberOfWipes = 0;
+    uint64_t lastWipe = 0;
 };
 
 #endif

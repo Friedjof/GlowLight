@@ -54,7 +54,7 @@ void DistanceService::loop() {
   bool wasPresent = this->objectPresent;
   this->objectPresent = this->isObjectPresent();
 
-  if (this->objectPresent) {
+  if (this->objectPresent && millis() - this->lastWipe > QUICK_WIPE_TIMEOUT) {
     this->result.distance = this->filter(measure.RangeMilliMeter);
 
     if (this->measurements <= QUICK_WIPE_MEASUREMENTS) {
@@ -62,6 +62,7 @@ void DistanceService::loop() {
     }
   }
 
+  // check if wipe is detected
   if (wasPresent && !this->objectPresent) {
     this->wipeDetected = this->measurements > 0 && this->measurements <= QUICK_WIPE_MEASUREMENTS;
 
@@ -74,6 +75,8 @@ void DistanceService::loop() {
         this->numberOfWipes = 0;
       }
       
+      this->lastWipe = millis();
+
       Serial.printf("[DEBUG] Wipe detected (%d)\n", this->numberOfWipes);
     }
 
