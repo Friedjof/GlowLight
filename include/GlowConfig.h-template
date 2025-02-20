@@ -2,6 +2,7 @@
 #define LED_DATA_PIN 3
 #define LED_NUM_LEDS 11
 #define LED_MAX_BRIGHTNESS 255
+#define LED_MIN_BRIGHTNESS 0
 #define LED_DEFAULT_BRIGHTNESS 128
 
 #define LED_UPDATE_STEPS 20
@@ -13,6 +14,7 @@
 
 // CommunicationService
 // TODO: change MESH_PREFIX and MESH_PASSWORD
+#define MESH_ON true
 #define MESH_PREFIX "GlowMesh"
 #define MESH_PASSWORD "GlowMesh"
 #define MESH_PORT 5555

@@ -13,6 +13,11 @@ CommunicationService::~CommunicationService() {
 
 // main functions
 void CommunicationService::setup() {
+  if (!MESH_ON) {
+    Serial.println("[INFO] Mesh-Netzwerk is disabled");
+    return;
+  }
+
   // Mesh-Netzwerk initialized
   if (this->mesh != nullptr) {
     this->mesh->init(MESH_PREFIX, MESH_PASSWORD, this->scheduler, MESH_PORT);
@@ -31,6 +36,8 @@ void CommunicationService::setup() {
 }
 
 void CommunicationService::loop() {
+  if (!MESH_ON) return;
+
   if (this->mesh != nullptr) {
     this->mesh->update();
   }
@@ -47,6 +54,8 @@ void CommunicationService::loop() {
 
 // communication functions
 void CommunicationService::send(String message, GlowNode node) {
+  if (!MESH_ON) return;
+  
   if (this->mesh != nullptr) {
     this->mesh->sendSingle(node.id, message);
     Serial.printf("[INFO] Message sent to %u: %s\n", node.id, message.c_str());
@@ -56,6 +65,8 @@ void CommunicationService::send(String message, GlowNode node) {
 }
 
 void CommunicationService::broadcast(String message) {
+  if (!MESH_ON) return;
+
   if (this->nodes.size() == 0) {
     Serial.println("[DEBUG] No nodes available, cannot broadcast message");
     return;
@@ -70,6 +81,8 @@ void CommunicationService::broadcast(String message) {
 }
 
 void CommunicationService::sendEvent(JsonDocument event) {
+  if (!MESH_ON) return;
+
   JsonDocument message;
 
   message["type"] = MessageType::EVENT;
@@ -84,6 +97,8 @@ void CommunicationService::sendEvent(JsonDocument event) {
 }
 
 void CommunicationService::sendSync(uint64_t timestamp) {
+  if (!MESH_ON) return;
+  
   JsonDocument message;
 
   message["type"] = MessageType::SYNC;
