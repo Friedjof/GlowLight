@@ -130,12 +130,24 @@ bool AbstractMode::optionHasChanged() {
 
 // brightness functions
 bool AbstractMode::setBrightness() {
-  if (!this->distanceService->isObjectPresent() || this->distanceService->fixed()) {
+  if ((!this->distanceService->isObjectPresent() && !this->distanceService->hasObjectDisappeared() && !this->distanceService->hasWipeDetected()) || this->distanceService->fixed()) {
     return false;
   }
 
   if (this->currentResult.level != this->lastResult.level) {
-    uint16_t brightness = this->expNormalize(this->currentResult.level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, .5);
+    uint16_t brightness = 0;
+
+    if (!this->distanceService->hasWipeDetected()) {
+      brightness = this->expNormalize(this->currentResult.level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, .5);
+    } else {
+      if (this->brightness == LED_MAX_BRIGHTNESS) {
+        brightness = LED_MIN_BRIGHTNESS;
+      } else if (this->brightness == LED_MIN_BRIGHTNESS) {
+        brightness = LED_MAX_BRIGHTNESS;
+      } else {
+        brightness = this->distanceService->getNumberOfWipes() % 2 == 0 ? LED_MIN_BRIGHTNESS : LED_MAX_BRIGHTNESS;
+      }
+    }
 
     this->lightService->setBrightness(brightness);
 

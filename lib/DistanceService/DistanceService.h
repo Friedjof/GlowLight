@@ -29,6 +29,7 @@ class DistanceService {
     uint16_t getDistance();
     uint16_t getLevel();
     result_t getResult();
+    uint16_t getNumberOfWipes();
 
     bool fixed();
     bool changing();
@@ -37,6 +38,7 @@ class DistanceService {
     bool isObjectPresent();
     bool isObjectPresent(uint16_t distance);
     bool hasObjectDisappeared();
+    bool hasWipeDetected();
 
     bool alert();
 
@@ -49,10 +51,14 @@ class DistanceService {
     bool sendAlert = false;
 
     uint64_t lastChange = 0;
+    uint16_t measurements = 0;
 
     bool sensorPresent = false;
     bool objectPresent = false;
     bool objectDisappeared = false;
+
+    bool wipeDetected = false;
+    uint16_t numberOfWipes = 0;
 };
 
 #endif
