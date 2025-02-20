@@ -6,7 +6,8 @@
 
 #include <ArrayList.h>
 #include <ArduinoJson.h>
-#include <painlessMesh.h>
+#include <esp_now.h>
+#include <WiFi.h>
 
 #include "GlowConfig.h"
 
