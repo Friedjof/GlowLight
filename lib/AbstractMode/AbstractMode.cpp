@@ -1,14 +1,14 @@
 #include "AbstractMode.h"
 
-AbstractMode::AbstractMode(LightService* lightService, DistanceService* distanceService) {
+AbstractMode::AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) {
   this->lightService = lightService;
   this->distanceService = distanceService;
+  this->communicationService = communicationService;
+
+  this->registry = GlowRegistry();
 }
 
-AbstractMode::~AbstractMode() {
-  delete this->lightService;
-}
-
+// meta functions
 String AbstractMode::getTitle() {
   return this->title;
 }
@@ -33,6 +33,7 @@ String AbstractMode::getLicense() {
   return this->license;
 }
 
+// option functions
 uint8_t AbstractMode::getCurrentOption() {
   return this->currentOption;
 }
@@ -77,6 +78,19 @@ bool AbstractMode::nextOption() {
   return this->options.get(this->currentOption).alert;
 }
 
+bool AbstractMode::setOption(uint8_t option) {
+  if (this->options.size() == 0 || option >= this->options.size()) {
+    return false;
+  }
+
+  this->currentOption = option;
+
+  this->optionChanged = true;
+  this->optionCalled = false;
+
+  return this->options.get(this->currentOption).alert;
+}
+
 bool AbstractMode::callCurrentOption() {
   if (this->options.size() == 0 || this->currentOption >= this->options.size()) {
     return false;
@@ -114,8 +128,9 @@ bool AbstractMode::optionHasChanged() {
   return false;
 }
 
+// brightness functions
 bool AbstractMode::setBrightness() {
-  if (!this->distanceService->objectPresent() || this->distanceService->fixed()) {
+  if (!this->distanceService->isObjectPresent() || this->distanceService->fixed()) {
     return false;
   }
 
@@ -139,6 +154,7 @@ bool AbstractMode::resetBrightness() {
   return true;
 }
 
+// update brightness
 bool AbstractMode::updateBrightness(uint16_t brightness) {
   if (brightness == this->brightness) {
     return false;
@@ -155,6 +171,7 @@ uint16_t AbstractMode::getBrightness() {
   return this->brightness;
 }
 
+// distance functions
 uint16_t AbstractMode::getLevel() {
   return this->currentResult.level;
 }
@@ -177,7 +194,31 @@ uint16_t AbstractMode::invExpNormalize(uint16_t input, uint16_t min, uint16_t ma
   return (uint16_t)((1.0 - factor) * linearPart + factor * expPart);
 }
 
+// serialize and deserialize
+JsonDocument AbstractMode::serialize() {
+  this->registry.setInt("currentOption", this->currentOption);
+  this->registry.setInt("brightness", this->brightness);
 
+  return this->registry.serialize();
+}
+
+void AbstractMode::deserialize(JsonDocument doc) {
+  // check if the title and version match (to prevent deserialization of wrong data for another mode)
+  this->registry.deserialize(doc);
+
+  this->currentOption = this->registry.getInt("currentOption");
+  this->brightness = this->registry.getInt("brightness");
+
+  // call the setup function of the derived class
+  this->optionChanged = true;
+  this->optionCalled = false;
+
+  this->resetBrightness();
+
+  Serial.println("[DEBUG] Deserialized data");
+}
+
+// main functions
 void AbstractMode::loop() {
   this->currentResult = this->distanceService->getResult();
 
@@ -215,4 +256,16 @@ void AbstractMode::first() {
   this->lightService->setLightUpdateSteps(LED_UPDATE_STEPS);
 
   this->customFirst();
+}
+
+void AbstractMode::modeSetup() {
+  // call the setup function of the derived class
+  this->setup();
+
+  this->registry.setTitle(this->getTitle());
+  this->registry.setVersion(this->getVersion());
+
+  // initialize the registry
+  this->registry.init("currentOption", RegistryType::INT, 0, 0, this->getNumberOfOptions() - 1);
+  this->registry.init("brightness", RegistryType::INT, LED_DEFAULT_BRIGHTNESS, 0, LED_MAX_BRIGHTNESS);
 }

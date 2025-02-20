@@ -1,6 +1,6 @@
 #include "StaticMode.h"
 
-StaticMode::StaticMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+StaticMode::StaticMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Static Light";
   this->description = "This produces constant light";
   this->author = "Friedjof Noweck";
@@ -10,38 +10,41 @@ StaticMode::StaticMode(LightService* lightService, DistanceService* distanceServ
 }
 
 void StaticMode::setup() {
+  this->registry.init("color", RegistryType::COLOR, CRGB(255, 128, 20));
+  this->registry.init("fixed", RegistryType::BOOL, false);
+
   this->addOption("Warm soft yellow", [this]() {
-    this->lightService->fill(CRGB(255, 128, 20));
+    this->fill(CRGB(255, 128, 20));
   }, false);
   this->addOption("Warmer pink", [this]() {
-    this->lightService->fill(CRGB(255, 180, 200));
+    this->fill(CRGB(255, 180, 200));
   }, false);
   this->addOption("Warm lavender", [this]() {
-    this->lightService->fill(CRGB(230, 170, 255));
+    this->fill(CRGB(230, 170, 255));
   }, false);
   this->addOption("Extra warm white", [this]() {
-    this->lightService->fill(CRGB(255, 220, 170));
+    this->fill(CRGB(255, 220, 170));
   }, false);
   this->addOption("Warm soft green", [this]() {
-    this->lightService->fill(CRGB(160, 220, 160));
+    this->fill(CRGB(160, 220, 160));
   }, false);
   this->addOption("Warmer soft blue", [this]() {
-    this->lightService->fill(CRGB(190, 210, 240));
+    this->fill(CRGB(190, 210, 240));
   }, false);
   this->addOption("Warm coral", [this]() {
-    this->lightService->fill(CRGB(255, 155, 105));
+    this->fill(CRGB(255, 155, 105));
   }, false);
   this->addOption("Gold", [this]() {
-    this->lightService->fill(CRGB(255, 220, 70));
+    this->fill(CRGB(255, 220, 70));
   }, false);
   this->addOption("Red", [this]() {
-    this->lightService->fill(CRGB(240, 70, 70));
+    this->fill(CRGB(240, 70, 70));
   }, false);
   this->addOption("Lime", [this]() {
-    this->lightService->fill(CRGB(120, 255, 120));
+    this->fill(CRGB(120, 255, 120));
   }, false);
   this->addOption("Blue", [this]() {
-    this->lightService->fill(CRGB(100, 140, 255));
+    this->fill(CRGB(100, 140, 255));
   }, false);
 }
 
@@ -50,9 +53,14 @@ void StaticMode::customFirst() {
 }
 
 void StaticMode::customLoop() {
-  if (!this->fixed) {
+  if (!this->registry.getBool("fixed")) {
     this->setBrightness();
   }
+}
+
+void StaticMode::fill(CRGB color) {
+  this->registry.setColor("color", color);
+  this->lightService->fill(color);
 }
 
 void StaticMode::last() {
@@ -60,6 +68,6 @@ void StaticMode::last() {
 }
 
 void StaticMode::customClick() {
-  Serial.print("[INFO] " + this->fixed ? "fixed" : "released");
-  this->fixed = !this->fixed;
+  Serial.print("[INFO] " + this->registry.getBool("fixed") ? "Fixed" : "Not fixed");
+  this->registry.setBool("fixed", !this->registry.getBool("fixed"));
 }

@@ -15,9 +15,20 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 [-> Rainbow Mode Demo Video](media/images/demo/dual_lamps_rainbow_mode.mp4)
 
-![Modes](media/images/demo/modes.png)
+![Modes](media/images/diagrams/modes.png)
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
+
+## Communication (NEW)
+
+![Communication](media/images/diagrams/communication.png)
+
+[-> Mesh Network Demo Video](media/images/demo/3_lamps_communication.mp4)
+
+Now you can configure an mesh network between the lamps. The lamps can communicate with each other and synchronize the modes. The communication is done using the `PainlessMesh` library.
+
+You can set the mesh ssid and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`.
+This authentication is necessary to prevent unauthorized access to the mesh network and with this you can split the network in different groups.
 
 ## Hardware Components
 
@@ -31,6 +42,7 @@ This is an overview of the different modes available in the lamp. The modes can 
 - 3x M3 screws
 
 ### Main Components
+
 ![Main Components](media/images/components/button_sensor_esp32c3_led_mini.png)
 
 ### Tools and Materials
@@ -125,6 +137,24 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 - [`FastLED`](https://registry.platformio.org/libraries/fastled/FastLED) for LED control
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
+
+## Development
+
+The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services and the controller are implemented in separate files in the [`/lib`](/lib) folder.
+
+### Classes
+
+![Classes](media/images/diagrams/classes.png)
+
+### Modes
+
+Every Mode is a class that inherits from the `AbstractMode` class. The abstract class already implements the basic functions that every mode should have. In every mode, the following functions must be implemented: `setup`, `customFirst`, `customLoop`, `last`, and `customClick`.
+
+- `setup`: This function is called once when the mode is added to the controller when the lamp is turned on.
+- `customFirst`: This function is called once when the mode is newly selected.
+- `customLoop`: This function is called every loop iteration.
+- `last`: This function is called once when the mode is removed from the controller.
+- `customClick`: This function is called when a double click is detected from the button.
 
 ## License
 

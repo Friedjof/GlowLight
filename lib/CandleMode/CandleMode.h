@@ -8,7 +8,7 @@
 
 class CandleMode : public AbstractMode {
   public:
-    CandleMode(LightService* lightService, DistanceService* distanceService);
+    CandleMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 
@@ -19,8 +19,6 @@ class CandleMode : public AbstractMode {
     void customClick();
 
   private:
-    uint16_t speed = CANDLE_SPEED_DEFAULT;
-
     ArrayList<CRGB> colors;
 
     bool newSpeed();

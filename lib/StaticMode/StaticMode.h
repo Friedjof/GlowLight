@@ -9,13 +9,15 @@
 
 class StaticMode : public AbstractMode {
   public:
-    StaticMode(LightService* lightService, DistanceService* distanceService);
+    StaticMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
     void setup();
 
     void customFirst();
     void customLoop();
     void last();
+
+    void fill(CRGB color);
 
     void customClick();
 

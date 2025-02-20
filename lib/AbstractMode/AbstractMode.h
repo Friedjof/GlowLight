@@ -1,15 +1,24 @@
+/*
+ * AbstractMode.h
+ * This is the abstract class for all modes.
+ * It provides the basic structure for all modes and handles the options and brightness as basic features.
+ * It also provides some helper functions for normalizing and denormalizing values.
+ */
+
 #ifndef ABSTRACTMODE_H
 #define ABSTRACTMODE_H
 
 #include <Arduino.h>
 #include <ArrayList.h>
 #include <functional>
+#include <FastLED.h>
 
+#include "GlowRegistry.h"
 #include "LightService.h"
 #include "DistanceService.h"
+#include "CommunicationService.h"
 
 #include "GlowConfig.h"
-
 
 
 struct option_t {
@@ -47,6 +56,9 @@ class AbstractMode {
 
 		LightService* lightService;
 		DistanceService* distanceService;
+		CommunicationService* communicationService;
+
+		GlowRegistry registry;
 
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};
@@ -61,9 +73,8 @@ class AbstractMode {
 		bool recallCurrentOption();
 
 	public:
-		AbstractMode(LightService* lightService, DistanceService* distanceService);
-		~AbstractMode();
-		
+		AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
+
 		String getTitle();
 		String getDescription();
 		String getAuthor();
@@ -84,9 +95,14 @@ class AbstractMode {
 		uint8_t getCurrentOption();
 		uint8_t getNumberOfOptions();
 		bool nextOption();
+		bool setOption(uint8_t option);
+
+		JsonDocument serialize();
+		void deserialize(JsonDocument doc);
 
 		void loop();
 		void first();
+		void modeSetup();
 
 		virtual void setup() = 0;
 		virtual void customFirst() = 0;

@@ -1,15 +1,19 @@
 #include "BeaconMode.h"
 
-BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceService) : AbstractMode(lightService, distanceService) {
+BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Beacon";
   this->description = "This mode simulates a beacon";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
-  this->version = "1.0.0";
+  this->version = "2.1.0";
   this->license = "MIT";
 }
 
 void BeaconMode::setup() {
+  this->registry.init("hueOne", RegistryType::INT, 0, 0, 255);
+  this->registry.init("hueTwo", RegistryType::INT, 192, 0, 255);
+  this->registry.init("speed", RegistryType::INT, BEACON_SPEED_DEFAULT, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
+
   this->addOption("Speed", [this]() {
     this->newSpeed();
   }, true);
@@ -31,12 +35,12 @@ void BeaconMode::customFirst() {
 }
 
 void BeaconMode::customLoop() {
-  if (this->counter++ % this->speed == 0) {
-    this->setHue(this->position, this->hueOne);
+  if (this->counter++ % this->registry.getInt("speed") == 0) {
+    this->setHue(this->position, this->registry.getInt("hueOne"));
 
     this->position = (this->position + 1) % LED_NUM_LEDS;
 
-    this->setHue((this->position + BEACON_LENGTH_DEFAULT) % LED_NUM_LEDS, this->hueTwo);
+    this->setHue((this->position + BEACON_LENGTH_DEFAULT) % LED_NUM_LEDS, this->registry.getInt("hueTwo"));
   }
 }
 
@@ -49,51 +53,52 @@ void BeaconMode::customClick() {
 }
 
 bool BeaconMode::newSpeed() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
   uint16_t level = this->getLevel();
 
-  uint16_t spd = this->expNormalize(level, 0, DISTANCE_LEVELS, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
+  // map the distance level to the speed
+  uint16_t spd = map(level, 0, DISTANCE_LEVELS, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
 
-  if (spd == this->speed) {
+  if (spd == this->registry.getInt("speed")) {
     return false;
   }
 
-  this->speed = spd;
+  this->registry.setInt("speed", spd);
 
   return true;
 }
 
 bool BeaconMode::newHueOne() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
-  uint16_t level = this->distance2hue(this->getDistance(), this->hueOne);
+  uint16_t level = this->distance2hue(this->getDistance(), this->registry.getInt("hueOne"));
 
-  if (level == this->hueOne) {
+  if (level == this->registry.getInt("hueOne")) {
     return false;
   }
 
-  this->hueOne = level;
+  this->registry.setInt("hueOne", level);
 
   return true;
 }
 
 bool BeaconMode::newHueTwo() {
-  if (!this->distanceService->objectPresent()) {
+  if (!this->distanceService->isObjectPresent()) {
     return false;
   }
 
-  uint16_t level = this->distance2hue(this->getDistance(), this->hueTwo);
+  uint16_t level = this->distance2hue(this->getDistance(), this->registry.getInt("hueTwo"));
 
-  if (level == this->hueTwo) {
+  if (level == this->registry.getInt("hueTwo")) {
     return false;
   }
 
-  this->hueTwo = level;
+  this->registry.setInt("hueTwo", level);
 
   return true;
 }

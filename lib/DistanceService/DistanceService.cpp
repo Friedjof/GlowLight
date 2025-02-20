@@ -47,12 +47,18 @@ void DistanceService::loop() {
 
   this->sensor.rangingTest(&measure, false);
 
+  uint16_t oldDistance = this->result.distance;
   this->result.status = measure.RangeStatus;
 
   // check if object is present
-  if (this->objectPresent()) {
+  this->objectDisappeared = this->objectPresent;
+  this->objectPresent = this->isObjectPresent();
+  
+  if (this->objectPresent) {
     this->result.distance = this->filter(measure.RangeMilliMeter);
   }
+
+  this->objectDisappeared = this->objectDisappeared && !this->objectPresent;
 
   uint16_t level = this->distance2level(this->result.distance);
 
@@ -69,12 +75,12 @@ void DistanceService::loop() {
     Serial.println(this->result.level);
   }
 
-  if (this->changing() && !this->objectPresent()) {
+  if (this->changing() && !this->isObjectPresent()) {
     this->status = 0x00;
   }
 
   // Hold level if distance is not changing and is within range (hand is close to sensor)
-  if (this->changing() && millis() - this->lastChange > DISTANCE_HOLD_MS && this->objectPresent()) {
+  if (this->changing() && millis() - this->lastChange > DISTANCE_HOLD_MS && this->isObjectPresent()) {
     this->status = 0x02;
     this->sendAlert = true;
 
@@ -82,11 +88,15 @@ void DistanceService::loop() {
   }
 
   // Release if distance is not changing and is out of range (hand is far from sensor)
-  if (this->fixed() && !this->objectPresent()) {
+  if (this->fixed() && !this->isObjectPresent()) {
     this->status = 0x00;
     this->sendAlert = false;
 
     Serial.println("[DEBUG] Release level");
+  }
+
+  if (this->objectDisappeared) {
+    Serial.println("[DEBUG] Object disappeared");
   }
 }
 
@@ -152,8 +162,17 @@ bool DistanceService::released() {
 }
 
 // an object is present if the distance is less than the unchanged distance and the status is 0x00 (valid)
-bool DistanceService::objectPresent() {
-  return this->result.distance < DISTANCE_UNCHANGED_MM && this->result.status == 0x00;
+bool DistanceService::isObjectPresent(uint16_t distance) {
+  return distance < DISTANCE_UNCHANGED_MM && this->result.status == 0x00;
+}
+
+bool DistanceService::isObjectPresent() {
+  return this->isObjectPresent(this->result.distance);
+}
+
+// an object has disappeared if the object was present and is no longer present
+bool DistanceService::hasObjectDisappeared() {
+  return this->objectDisappeared;
 }
 
 bool DistanceService::alert() {
