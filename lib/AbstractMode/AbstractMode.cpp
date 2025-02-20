@@ -222,30 +222,6 @@ void AbstractMode::deserialize(JsonDocument doc) {
 void AbstractMode::loop() {
   this->currentResult = this->distanceService->getResult();
 
-  if (!this->wipe && millis() - this->startWipe > 100 && millis() - this->stopWipe > 2000 && this->distanceService->objectPresent()) {
-    this->startWipe = millis();
-    this->wipe = true;
-
-    Serial.print("[INFO] Wipe started after ");
-    Serial.print(millis() - this->stopWipe);
-    Serial.println("ms");
-  }
-
-  if (this->wipe && millis() - this->startWipe > 500 && !this->distanceService->objectPresent()) {
-    this->stopWipe = millis();
-    this->wipe = false;
-
-    Serial.print("[INFO] Wipe stopped after ");
-    Serial.print(millis() - this->startWipe);
-    Serial.println("ms");
-  }
-
-  if (!this->wipe && this->stopWipe - this->startWipe > QUICK_WIPE_INTERVAL && !this->distanceService->objectPresent()) {
-    Serial.println("[DEBUG] set brightness to 255");
-
-    this->lightService->setBrightness(255);
-  }
-
   this->callCurrentOption();
 
   this->customLoop();
