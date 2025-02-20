@@ -35,6 +35,13 @@ void CommunicationService::loop() {
     this->mesh->update();
   }
 
+  if (millis() - this->last_hartbeat > HARTBEAT_INTERVAL) {
+    this->last_hartbeat = millis();
+    this->broadcast("{\"type\":2}");
+
+    Serial.println("[DEBUG] Heartbeat sent");
+  }
+
   this->removeOldNodes();
 }
 
@@ -207,13 +214,22 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
     return;
   }
 
-  if (this->receivedControllerCallback != nullptr) {
-    this->receivedControllerCallback(from, message, type);
-  } else {
-    Serial.println("[ERROR] No callback for received message, ignoring message");
+  // update node
+  this->updateNode(from);
+
+  // if the message is a heartbeat, ignore sending it to the controller
+  if (type == MessageType::HEARTBEAT) {
+    Serial.println("[DEBUG] Heartbeat message received, ignoring message");
+    
+    return;
   }
 
-  this->updateNode(from);
+  if (this->receivedControllerCallback == nullptr) {
+    Serial.println("[ERROR] No callback for received message, ignoring message");
+    return;
+  }
+
+  this->receivedControllerCallback(from, message, type);
 }
 
 void CommunicationService::newConnectionCallback(uint32_t nodeId) {

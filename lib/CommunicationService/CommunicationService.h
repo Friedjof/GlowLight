@@ -22,6 +22,7 @@ struct GlowNode {
 enum MessageType {
   EVENT = 0,
   SYNC = 1,
+  HEARTBEAT = 2,
   MAX
 };
 
@@ -34,6 +35,9 @@ class CommunicationService {
     std::function<void(uint32_t, JsonDocument, MessageType)> receivedControllerCallback = nullptr;
 
     ArrayList<GlowNode> nodes;
+
+    // the CommunicationService will send periodic heartbeats to the other nodes to let them know it's still alive
+    uint64_t last_hartbeat = 0;
 
     void receivedCallback(uint32_t from, String &msg);
     void newConnectionCallback(uint32_t nodeId);

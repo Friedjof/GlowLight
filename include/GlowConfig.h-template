@@ -16,7 +16,8 @@
 #define MESH_PREFIX "GlowMesh"
 #define MESH_PASSWORD "GlowMesh"
 #define MESH_PORT 5555
-#define GLOW_NODE_TIMEOUT 10000
+#define GLOW_NODE_TIMEOUT 30*60*1000 // 30 minutes
+#define HARTBEAT_INTERVAL 10000
 
 // DistanceService
 #define DISTANCE_SENSOR_SDA 6
