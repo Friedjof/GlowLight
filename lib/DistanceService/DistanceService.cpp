@@ -177,6 +177,10 @@ uint16_t DistanceService::getNumberOfWipes() {
   return this->numberOfWipes;
 }
 
+void DistanceService::setNumberOfWipes(uint16_t numberOfWipes) {
+  this->numberOfWipes = numberOfWipes;
+}
+
 bool DistanceService::fixed() {
   return this->status == DISTANCE_HOLD_STATUS;
 }

@@ -112,6 +112,22 @@ void CommunicationService::sendSync(uint64_t timestamp) {
   Serial.println("[DEBUG] Sync message sent");
 }
 
+void CommunicationService::sendWipe(uint16_t numberOfWipes) {
+  if (!MESH_ON) return;
+
+  JsonDocument message;
+
+  message["type"] = MessageType::WIPE;
+  message["message"]["numberOfWipes"] = numberOfWipes;
+
+  String msg;
+  serializeJson(message, msg);
+
+  this->broadcast(msg);
+
+  Serial.println("[DEBUG] Wipe message sent");
+}
+
 // time functions
 uint64_t CommunicationService::getTimestamp() {
   return (uint64_t)time(nullptr);

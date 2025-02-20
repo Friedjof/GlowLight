@@ -29,7 +29,9 @@ class DistanceService {
     uint16_t getDistance();
     uint16_t getLevel();
     result_t getResult();
+
     uint16_t getNumberOfWipes();
+    void setNumberOfWipes(uint16_t numberOfWipes);
 
     bool fixed();
     bool changing();

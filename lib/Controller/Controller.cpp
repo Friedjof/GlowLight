@@ -155,6 +155,11 @@ void Controller::loop() {
   if (this->distanceService->hasObjectDisappeared()) {
     this->event();
   }
+
+  if (this->distanceService->hasWipeDetected()) {
+    this->event();
+    this->communicationService->sendWipe(this->distanceService->getNumberOfWipes());
+  }
 }
 
 // alert functions
@@ -271,7 +276,19 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
     } else {
       Serial.println("[DEBUG] this GlowNode will not send the current state");
     }
+  } else if (type == MessageType::WIPE) {
+    // the WIPE message will be triggered if a wipe is detected
 
+    // check if the wipe has the correct format
+    if (!message["numberOfWipes"].is<uint16_t>()) {
+      Serial.println("[ERROR] Invalid message wipe format, ignoring message");
+      return;
+    }
+
+    Serial.println("[DEBUG] Wipe message received");
+
+    // set the number of wipes
+    this->distanceService->setNumberOfWipes(message["numberOfWipes"].as<uint16_t>());
   } else {
     Serial.println("[ERROR] Invalid message type, ignoring message");
   }
