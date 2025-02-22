@@ -11,6 +11,7 @@ This repository contains the software, schematics, and 3D printing files for a b
     <td><img src="media/images/components/assembled_lampshade.jpg" alt="Assembled Lampshade"></td>
     <td><img src="media/images/demo/rainbow_mode.jpg" alt="Rainbow Mode"></td>
     <td><img src="media/images/components/usb-c_port.jpg" alt="USB-C Port"></td>
+  </tr>
 </table>
 
 [-> Rainbow Mode Demo Video](media/images/demo/dual_lamps_rainbow_mode.mp4)
@@ -25,16 +26,15 @@ This is an overview of the different modes available in the lamp. The modes can 
 
 [-> Mesh Network Demo Video](media/images/demo/3_lamps_communication.mp4)
 
-Now you can configure an mesh network between the lamps. The lamps can communicate with each other and synchronize the modes. The communication is done using the `PainlessMesh` library.
+Now you can configure a mesh network between the lamps. The lamps can communicate with each other and synchronize the modes. The communication is done using the `PainlessMesh` library.
 
-You can set the mesh ssid and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`.
-This authentication is necessary to prevent unauthorized access to the mesh network and with this you can split the network in different groups.
+You can set the mesh SSID and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`. This authentication is necessary to prevent unauthorized access to the mesh network and allows you to split the network into different groups.
 
 ## Hardware Components
 
 - DUBEUYEW ESP32-C3 Development Board Mini
 - VL53L0X distance sensor
-- Simple push button (hight ≥ 6mm)
+- Simple push button (height ≥ 6mm)
 - WS2812B 5V LED strip (11 LEDs)
 - External 5V power supply
 - USB-C and some other necessary cables
@@ -61,6 +61,7 @@ This authentication is necessary to prevent unauthorized access to the mesh netw
     <td><img src="media/images/printing/3d_printed_parts.jpg" alt="Printed Parts"></td>
     <td><img src="media/images/components/assembled_lamp_base.jpg" alt="Assembled Lamp Base"></td>
     <td><img src="media/images/components/lamp_final_assembly.jpg" alt="Final Assembly"></td>
+  </tr>
 </table>
 
 ### Soldering
@@ -91,6 +92,7 @@ This table also shows the connections:
   <tr>
     <td><img src="media/images/components/button_sensor_esp32c3_led.jpg" alt="Button, Sensor, ESP32C3, and LED"></td>
     <td><img src="media/images/components/wiring_setup_lamp.jpg" alt="Wiring Setup"></td>
+  </tr>
 </table>
 
 ### Threaded Insert
@@ -140,7 +142,7 @@ For more details on the libraries, refer to the [`platformio.ini`](/platformio.i
 
 ## Development
 
-The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services and the controller are implemented in separate files in the [`/lib`](/lib) folder.
+The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services, and the controller are implemented in separate files in the [`/lib`](/lib) folder.
 
 ### Classes
 
@@ -148,7 +150,7 @@ The software is written in C++ and is structured as a typical PlatformIO project
 
 ### Modes
 
-Every Mode is a class that inherits from the `AbstractMode` class. The abstract class already implements the basic functions that every mode should have. In every mode, the following functions must be implemented: `setup`, `customFirst`, `customLoop`, `last`, and `customClick`.
+Every mode is a class that inherits from the `AbstractMode` class. The abstract class already implements the basic functions that every mode should have. In every mode, the following functions must be implemented: `setup`, `customFirst`, `customLoop`, `last`, and `customClick`.
 
 - `setup`: This function is called once when the mode is added to the controller when the lamp is turned on.
 - `customFirst`: This function is called once when the mode is newly selected.

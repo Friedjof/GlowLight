@@ -60,8 +60,18 @@ void LightService::loop() {
 }
 
 void LightService::setBrightness(uint8_t brightness) {
+  if (this->brightness == brightness) {
+    return;
+  }
+
   FastLED.setBrightness(brightness);
   FastLED.show();
+
+  this->brightness = brightness;
+}
+
+uint8_t LightService::getBrightness() {
+  return this->brightness;
 }
 
 void LightService::setLightUpdateSteps(uint16_t steps) {

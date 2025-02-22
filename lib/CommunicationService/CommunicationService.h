@@ -24,6 +24,7 @@ enum MessageType {
   EVENT = 0,
   SYNC = 1,
   HEARTBEAT = 2,
+  WIPE = 3,
   MAX
 };
 
@@ -72,6 +73,7 @@ class CommunicationService {
     // communication
     void sendEvent(JsonDocument event);
     void sendSync(uint64_t timestamp);
+    void sendWipe(uint16_t numberOfWipes);
 
     bool onNewConnection(std::function<void()> callback);
     bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback);

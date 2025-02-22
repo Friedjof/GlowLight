@@ -84,6 +84,13 @@ bool GlowRegistry::init(String key, RegistryType type, uint16_t defaultValue, ui
     return false;
   }
 
+  if (min > max) {
+    Serial.println("[WARNING] Min is greater than max, swapping values");
+    uint16_t tmp = min;
+    min = max;
+    max = tmp;
+  }
+
   this->meta[key]["type"] = type;
   this->meta[key]["min"] = min;
   this->meta[key]["max"] = max;
@@ -192,7 +199,7 @@ bool GlowRegistry::setInt(String key, uint16_t value) {
   uint16_t max = this->meta[key]["max"];
 
   if (value < min || value > max) {
-    Serial.println("[ERROR] Value out of bounds");
+    Serial.printf("[ERROR] Value %d out of range [%d, %d]\n", value, min, max);
     return false;
   }
 

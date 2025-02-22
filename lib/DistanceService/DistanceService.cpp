@@ -51,14 +51,41 @@ void DistanceService::loop() {
   this->result.status = measure.RangeStatus;
 
   // check if object is present
-  this->objectDisappeared = this->objectPresent;
+  bool wasPresent = this->objectPresent;
   this->objectPresent = this->isObjectPresent();
-  
-  if (this->objectPresent) {
+
+  if (this->objectPresent && millis() - this->lastWipe > QUICK_WIPE_TIMEOUT) {
     this->result.distance = this->filter(measure.RangeMilliMeter);
+
+    if (this->measurements <= QUICK_WIPE_MEASUREMENTS) {
+      this->measurements++;
+    }
   }
 
-  this->objectDisappeared = this->objectDisappeared && !this->objectPresent;
+  // check if wipe is detected
+  if (wasPresent && !this->objectPresent) {
+    this->wipeDetected = this->measurements > 0 && this->measurements <= QUICK_WIPE_MEASUREMENTS;
+
+    if (this->wipeDetected) {
+      this->result.distance = this->result.distance == DISTANCE_MAX_MM ? 0 : DISTANCE_MAX_MM;
+
+      if (this->numberOfWipes < QUICK_WIPE_MAX) {
+        this->numberOfWipes++;
+      } else {
+        this->numberOfWipes = 0;
+      }
+      
+      this->lastWipe = millis();
+
+      Serial.printf("[DEBUG] Wipe detected (%d)\n", this->numberOfWipes);
+    }
+
+    this->measurements = 0;
+  } else if (this->wipeDetected) {
+    this->wipeDetected = false;
+  }
+
+  this->objectDisappeared = wasPresent && !this->objectPresent && !this->wipeDetected;
 
   uint16_t level = this->distance2level(this->result.distance);
 
@@ -149,6 +176,14 @@ result_t DistanceService::getResult() {
   return this->result;
 }
 
+uint16_t DistanceService::getNumberOfWipes() {
+  return this->numberOfWipes;
+}
+
+void DistanceService::setNumberOfWipes(uint16_t numberOfWipes) {
+  this->numberOfWipes = numberOfWipes;
+}
+
 bool DistanceService::fixed() {
   return this->status == DISTANCE_HOLD_STATUS;
 }
@@ -173,6 +208,11 @@ bool DistanceService::isObjectPresent() {
 // an object has disappeared if the object was present and is no longer present
 bool DistanceService::hasObjectDisappeared() {
   return this->objectDisappeared;
+}
+
+// a wipe is detected if the object was present for a short period of time and then disappeared
+bool DistanceService::hasWipeDetected() {
+  return this->wipeDetected;
 }
 
 bool DistanceService::alert() {

@@ -5,7 +5,7 @@ BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceServ
   this->description = "This mode simulates a beacon";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
-  this->version = "2.0.0";
+  this->version = "2.1.0";
   this->license = "MIT";
 }
 
@@ -59,7 +59,8 @@ bool BeaconMode::newSpeed() {
 
   uint16_t level = this->getLevel();
 
-  uint16_t spd = this->expNormalize(level, 0, DISTANCE_LEVELS, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
+  // map the distance level to the speed
+  uint16_t spd = map(level, 0, DISTANCE_LEVELS, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
 
   if (spd == this->registry.getInt("speed")) {
     return false;
