@@ -2,13 +2,13 @@
 #include <Button2.h>
 #include <Wire.h>
 
-// controller and services
+// Controller and services
 #include "Controller.h"
 #include "LightService.h"
 #include "DistanceService.h"
 #include "CommunicationService.h"
 
-// modes
+// Modes
 #include "Alert.h"
 #include "StaticMode.h"
 #include "ColorPickerMode.h"
@@ -17,23 +17,23 @@
 #include "CandleMode.h"
 //#include "MiniGame.h"
 
-// config
+// Config
 #include "GlowConfig.h"
 
-// scheduler
+// Scheduler
 Scheduler scheduler;
 
-// services
+// Services
 Button2 button;
 
 LightService lightService;
 DistanceService distanceService;
 CommunicationService communicationService(&scheduler);
 
-// controller
+// Controller
 Controller controller(&distanceService, &communicationService);
 
-// light modes
+// Light modes
 Alert alertMode(&lightService, &distanceService, &communicationService);
 StaticMode staticMode(&lightService, &distanceService, &communicationService);
 ColorPickerMode colorPickerMode(&lightService, &distanceService, &communicationService);
@@ -48,22 +48,22 @@ CandleMode candleMode(&lightService, &distanceService, &communicationService);
 void setup() {
   Serial.begin(115200);
 
-  // setup i2c for the distance sensor
+  // Setup I2C for the distance sensor
   Wire.begin(DISTANCE_SENSOR_SDA, DISTANCE_SENSOR_SCL);
 
   Serial.println("[INFO] Starting Glow");
 
-  // setup services
+  // Setup services
   lightService.setup();
   distanceService.setup();
   communicationService.setup();
 
   button.begin(BUTTON_PIN);
 
-  // set debounce time (this is the time the button needs to be stable before a press is registered)
+  // Set debounce time (this is the time the button needs to be stable before a press is registered)
   button.setLongClickTime(500);
 
-  // the modes need to be added to the controller and the order will be the order of the modes
+  // The modes need to be added to the controller and the order will be the order of the modes
   controller.addMode(&staticMode);
   controller.addMode(&colorPickerMode);
   controller.addMode(&rainbowMode);
@@ -71,13 +71,13 @@ void setup() {
   controller.addMode(&candleMode);
   //controller.addMode(&miniGame);
 
-  // set alert mode
+  // Set alert mode
   controller.setAlertMode(&alertMode);
 
-  // setup controller
+  // Setup controller
   controller.setup();
 
-  // configure button handlers
+  // Configure button handlers
   button.setLongClickHandler([](Button2 &btn) {
     controller.nextMode();
   });
@@ -86,7 +86,7 @@ void setup() {
     controller.nextOption();
   });
 
-  // this click can be used for custom actions in the current mode
+  // This click can be used for custom actions in the current mode
   button.setDoubleClickHandler([](Button2 &btn) {
     controller.customClick();
   });
