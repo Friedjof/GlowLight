@@ -1,10 +1,33 @@
-# GlowLight
+# 🌟 GlowLight - Smart Mesh Bedside Lamp
 
-This repository contains the software, schematics, and 3D printing files for a bedside lamp. The software includes various modes that can be toggled using a button. Additionally, there is a distance sensor (`VL53L0X`) that enables features such as adjusting the lamp's brightness with a hand gesture.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Platform: ESP32-C3](https://img.shields.io/badge/Platform-ESP32--C3-red.svg)](https://www.espressif.com/en/products/socs/esp32-c3)
+[![Framework: Arduino](https://img.shields.io/badge/Framework-Arduino-cyan.svg)](https://www.arduino.cc/)
 
-> This is a beta version of the project. The software is still under development, and the hardware may require some adjustments. I cannot guarantee that the project will work as expected and will not be responsible for any damage caused by the project.
+A beautiful, smart bedside lamp with mesh networking capabilities, gesture controls, and multiple lighting modes. Built on ESP32-C3 with 3D-printed components and WS2812B LED strips.
 
-## Pictures
+## ✨ Features
+
+- **🎨 Multiple Lighting Modes**: Static colors, rainbow, beacon, candle effect, and more
+- **🤝 Mesh Networking**: Synchronize multiple lamps wirelessly
+- **👋 Gesture Control**: Hand proximity sensing with VL53L0X distance sensor
+- **🔘 Physical Controls**: Simple button interface for mode switching
+- **🏠 3D Printable**: Complete STL files for custom lamp housing
+- **🔧 Easy Setup**: One-command installation with interactive configuration
+- **📱 Device Management**: Automatic ESP32 detection and flashing
+- **💾 Backup System**: Configuration backup and restore
+
+## 📋 Table of Contents
+
+- [🚀 Quick Setup](#-quick-setup)
+- [📸 Gallery](#-gallery)
+- [🔗 Mesh Communication](#-mesh-communication-new)
+- [🔧 Hardware Components](#-hardware-components)
+- [📦 Software Installation](#-software-installation-advanced)
+- [👨‍💻 Development](#-development)
+- [📄 License](#-license)
+
+## 📸 Gallery
 
 <table>
   <tr>
@@ -20,7 +43,7 @@ This repository contains the software, schematics, and 3D printing files for a b
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
 
-## Communication (NEW)
+## 🔗 Mesh Communication (NEW)
 
 ![Communication](media/images/diagrams/communication.png)
 
@@ -30,7 +53,7 @@ Now you can configure a mesh network between the lamps. The lamps can communicat
 
 You can set the mesh SSID and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`. This authentication is necessary to prevent unauthorized access to the mesh network and allows you to split the network into different groups.
 
-## Hardware Components
+## 🔧 Hardware Components
 
 - DUBEUYEW ESP32-C3 Development Board Mini
 - VL53L0X distance sensor
@@ -107,9 +130,52 @@ To attach the lampshade to the base, a threaded insert is used. The insert is pl
   </tr>
 </table>
 
-## Software Installation
+## 🚀 Quick Setup
 
-This is a PlatformIO project. To compile and flash the software to the ESP32C3, PlatformIO must be installed. Once installed, you can open the project in PlatformIO and flash the software onto the ESP32C3.
+**Get started in just one command!** The GlowLight setup system will guide you through the entire installation process:
+
+```bash
+# Download and run the automatic installer
+curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+```
+
+**Alternative download method:**
+```bash
+wget -qO- https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+```
+
+### What the installer does:
+
+1. **🔍 Checks system requirements** (Python 3.8+, Git)
+2. **📦 Installs dependencies** automatically for your OS (Ubuntu/Debian, Fedora, Arch, macOS)
+3. **📂 Downloads the GlowLight project** to `~/GlowLight`
+4. **🛠️ Launches the interactive setup system** with a beautiful menu interface
+
+### Interactive Setup Features:
+
+- **⚙️ Project Configuration**: Set up mesh network and GPIO pins with guided wizards
+- **🔨 Build & Flash**: Compile and upload firmware to your ESP32-C3 with one click
+- **📱 Device Management**: Automatic ESP32 device detection and management
+- **📺 Serial Monitor**: Real-time device monitoring with logging
+- **🔧 PlatformIO Setup**: Automatic PlatformIO installation and management
+- **💾 Backup System**: Configuration backup and restore functionality
+
+### Manual Installation
+
+If you prefer to set up manually:
+
+```bash
+# Clone the repository
+git clone https://github.com/friedjof/GlowLight.git
+cd GlowLight
+
+# Run the setup system
+python3 scripts/setup.py
+```
+
+## 📦 Software Installation (Advanced)
+
+This is a PlatformIO project. The setup system above handles everything automatically, but for manual installation, PlatformIO must be installed. Once installed, you can open the project in PlatformIO and flash the software onto the ESP32C3.
 
 Alternatively, a `Makefile` is included, allowing you to flash the software via the command line. For this, PlatformIO must be installed, and the `PLATFORMIO` environment variable should point to the PlatformIO executable.
 
@@ -140,7 +206,7 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
 
-## Development
+## 👨‍💻 Development
 
 The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services, and the controller are implemented in separate files in the [`/lib`](/lib) folder.
 
@@ -158,6 +224,22 @@ Every mode is a class that inherits from the `AbstractMode` class. The abstract 
 - `last`: This function is called once when the mode is removed from the controller.
 - `customClick`: This function is called when a double click is detected from the button.
 
-## License
+## 📄 License
 
 This project is licensed under the GNU General Public License v3.0. For more information, see the [`LICENSE`](/LICENSE) file.
+
+---
+
+## ⚠️ Beta Notice
+
+This is a beta version of the project. The software is still under development, and the hardware may require some adjustments. I cannot guarantee that the project will work as expected and will not be responsible for any damage caused by the project.
+
+## 🎯 Quick Start Reminder
+
+**New to GlowLight?** Get started with just one command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+```
+
+The setup system will guide you through everything! 🚀

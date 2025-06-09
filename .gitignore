@@ -2,5 +2,13 @@
 .vscode/
 
 include/GlowConfig.h
+include/backups/
 
 **/.$*
+
+**/__pycache__/
+**/build/
+*.pyc
+*.pyo
+test_*.py
+*.log
