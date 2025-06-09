@@ -7,6 +7,9 @@ PORT2 = /dev/ttyACM1
 
 all: build
 
+setup:
+	python scripts/setup.py
+
 build:
 	$(PLATFORMIO) run --environment $(BOARD)
 
