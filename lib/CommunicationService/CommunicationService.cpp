@@ -289,6 +289,14 @@ uint32_t CommunicationService::getNodeId() {
   return this->mesh->getNodeId();
 }
 
+uint32_t CommunicationService::getMeshTime() {
+  if (!MESH_ON || this->mesh == nullptr) {
+    return millis();  // Fallback to local time if mesh is off
+  }
+  
+  return this->mesh->getNodeTime();
+}
+
 bool CommunicationService::onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback) {
   this->receivedControllerCallback = callback;
 

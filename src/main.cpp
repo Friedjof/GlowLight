@@ -16,6 +16,7 @@
 #include "BeaconMode.h"
 #include "CandleMode.h"
 #include "SunsetMode.h"
+#include "StrobeMode.h"
 //#include "MiniGame.h"
 
 // Config
@@ -42,6 +43,7 @@ RainbowMode rainbowMode(&lightService, &distanceService, &communicationService);
 BeaconMode beaconMode(&lightService, &distanceService, &communicationService);
 CandleMode candleMode(&lightService, &distanceService, &communicationService);
 SunsetMode sunsetMode(&lightService, &distanceService, &communicationService);
+StrobeMode strobeMode(&lightService, &distanceService, &communicationService);
 //MiniGame miniGame(&lightService, &distanceService, &communicationService);
 
 /*
@@ -72,6 +74,7 @@ void setup() {
   controller.addMode(&beaconMode);
   controller.addMode(&candleMode);
   controller.addMode(&sunsetMode);
+  controller.addMode(&strobeMode);
   //controller.addMode(&miniGame);
 
   // Set alert mode
