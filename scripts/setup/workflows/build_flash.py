@@ -56,7 +56,6 @@ class BuildFlashWorkflow:
             if not self._build_firmware():
                 return False
             
-            print(f"\n{Colors.GREEN}✅ Build completed successfully!{Colors.RESET}")
             return True
             
         except KeyboardInterrupt:
@@ -98,7 +97,6 @@ class BuildFlashWorkflow:
             if not self._flash_firmware(device):
                 return False
             
-            print(f"\n{Colors.GREEN}✅ Flash completed successfully!{Colors.RESET}")
             return True
             
         except KeyboardInterrupt:
@@ -141,7 +139,7 @@ class BuildFlashWorkflow:
             if not self._flash_firmware(device):
                 return False
             
-            print(f"\n{Colors.GREEN}✅ Build and flash completed successfully!{Colors.RESET}")
+            print(f"\n{Colors.GREEN}🎉 Build and flash completed successfully!{Colors.RESET}")
             return True
             
         except KeyboardInterrupt:

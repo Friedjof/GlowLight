@@ -132,16 +132,17 @@ To attach the lampshade to the base, a threaded insert is used. The insert is pl
 
 ## 🚀 Quick Setup
 
+![Setup Script](media/images/scripts/setup-menu.png)
+
 **Get started in just one command!** The GlowLight setup system will guide you through the entire installation process:
 
 ```bash
-# Download and run the automatic installer
-curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh > install.sh && bash install.sh
 ```
 
 **Alternative download method:**
 ```bash
-wget -qO- https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+wget https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh && bash install.sh
 ```
 
 ### What the installer does:

@@ -7,6 +7,8 @@ Handles PlatformIO installation, project management, building, and flashing.
 import os
 import subprocess
 import sys
+import time
+import threading
 from pathlib import Path
 import configparser
 
@@ -190,15 +192,45 @@ class PlatformIOManager:
             ASCIIArt.show_info(f"Building project{f' for {environment}' if environment else ''}...")
             
             if show_progress:
-                spinner = SpinnerProgress("Compiling firmware...")
-                spinner.start()
+                # Use a progress bar that simulates build progress
+                progress = ProgressBar(total=100, width=50)
                 
-            result = subprocess.run(cmd, 
-                                  capture_output=True, 
-                                  text=True)
-            
-            if show_progress:
-                spinner.stop()
+                # Start the build process in a thread so we can show progress
+                import threading
+                import time
+                
+                build_result = {'completed': False, 'result': None}
+                
+                def run_build():
+                    build_result['result'] = subprocess.run(cmd, 
+                                                          capture_output=True, 
+                                                          text=True)
+                    build_result['completed'] = True
+                
+                # Start build thread
+                build_thread = threading.Thread(target=run_build)
+                build_thread.daemon = True
+                build_thread.start()
+                
+                # Show progress while building
+                progress_value = 0
+                while not build_result['completed']:
+                    if progress_value < 90:  # Don't reach 100% until build is done
+                        progress_value += 2
+                    progress.update(progress_value, "Compiling firmware...")
+                    time.sleep(0.1)
+                
+                # Build is complete, finish progress
+                progress.update(100, "Complete!")
+                progress.finish("Complete!")
+                
+                # Wait for thread to complete and get result
+                build_thread.join()
+                result = build_result['result']
+            else:
+                result = subprocess.run(cmd, 
+                                      capture_output=True, 
+                                      text=True)
                 
             if result.returncode == 0:
                 ASCIIArt.show_success("Build completed successfully!")
@@ -237,28 +269,61 @@ class PlatformIOManager:
             ASCIIArt.show_info(f"Flashing {environment} to device...")
             
             if show_progress:
-                progress = ProgressBar(total=100, width=40)
+                # Use a progress bar for flashing
+                progress = ProgressBar(total=100, width=50)
                 
-                # Simulate progress (real progress tracking would need platform-specific parsing)
+                # Start the flash process in a thread so we can show progress
                 import threading
                 import time
                 
-                def simulate_progress():
-                    for i in range(101):
-                        progress.update(i, "Flashing firmware...")
-                        time.sleep(0.1)
-                        
-                progress_thread = threading.Thread(target=simulate_progress)
-                progress_thread.daemon = True
-                progress_thread.start()
+                flash_result = {'completed': False, 'result': None}
                 
-            result = subprocess.run(cmd, 
-                                  capture_output=True, 
-                                  text=True)
-            
-            if show_progress:
-                progress_thread.join()
-                progress.finish("Flash complete!")
+                def run_flash():
+                    flash_result['result'] = subprocess.run(cmd, 
+                                                          capture_output=True, 
+                                                          text=True)
+                    flash_result['completed'] = True
+                
+                # Start flash thread
+                flash_thread = threading.Thread(target=run_flash)
+                flash_thread.daemon = True
+                flash_thread.start()
+                
+                # Show progress phases during flashing
+                phases = [
+                    (20, "Connecting to device..."),
+                    (40, "Erasing flash memory..."),
+                    (70, "Writing firmware..."),
+                    (90, "Verifying flash..."),
+                    (100, "Flash complete!")
+                ]
+                
+                current_phase = 0
+                progress_value = 0
+                
+                while not flash_result['completed'] and current_phase < len(phases):
+                    target_progress, phase_message = phases[current_phase]
+                    
+                    # Gradually increase progress towards target
+                    while progress_value < target_progress and not flash_result['completed']:
+                        progress_value += 1
+                        progress.update(progress_value, phase_message)
+                        time.sleep(0.05)
+                    
+                    current_phase += 1
+                
+                # Ensure we reach 100% when done
+                if flash_result['completed']:
+                    progress.update(100, "Flash complete!")
+                    progress.finish()
+                
+                # Wait for thread to complete and get result
+                flash_thread.join()
+                result = flash_result['result']
+            else:
+                result = subprocess.run(cmd, 
+                                      capture_output=True, 
+                                      text=True)
                 
             if result.returncode == 0:
                 ASCIIArt.show_success(f"Firmware flashed successfully to {port or 'auto-detected port'}!")

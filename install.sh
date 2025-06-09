@@ -106,6 +106,9 @@ install_dependencies() {
                 print_status "Installing pip..."
                 sudo apt-get install -y python3-pip
             fi
+            # Ensure pip is up to date
+            print_status "Updating pip..."
+            python3 -m pip install --upgrade pip --user --quiet 2>/dev/null || true
         elif command_exists dnf; then
             # Fedora
             print_status "Detected Fedora system"
@@ -117,6 +120,9 @@ install_dependencies() {
                 print_status "Installing Python 3..."
                 sudo dnf install -y python3 python3-pip
             fi
+            # Ensure pip is up to date
+            print_status "Updating pip..."
+            python3 -m pip install --upgrade pip --user --quiet 2>/dev/null || true
         elif command_exists pacman; then
             # Arch Linux
             print_status "Detected Arch Linux system"
@@ -128,6 +134,9 @@ install_dependencies() {
                 print_status "Installing Python 3..."
                 sudo pacman -S --noconfirm python python-pip
             fi
+            # Ensure pip is up to date
+            print_status "Updating pip..."
+            python3 -m pip install --upgrade pip --user --quiet 2>/dev/null || true
         else
             print_warning "Unknown Linux distribution. Please install git and python3 manually."
         fi
@@ -143,6 +152,9 @@ install_dependencies() {
             if command_exists brew; then
                 print_status "Installing Python 3 via Homebrew..."
                 brew install python
+                # Ensure pip is up to date
+                print_status "Updating pip..."
+                python3 -m pip install --upgrade pip --user --quiet 2>/dev/null || true
             else
                 print_error "Python 3 not found. Please install Python 3 from https://python.org or install Homebrew."
                 exit 1
@@ -213,14 +225,90 @@ check_requirements() {
         return 1
     fi
     
-    # Check for Python modules that might be needed
+    # Check and install Python modules that are needed
     print_status "Checking Python environment..."
     python3 -c "import sys, os, subprocess, pathlib" 2>/dev/null || {
         print_warning "Some basic Python modules may not be available"
     }
     
+    # Install required Python packages
+    install_python_packages
+    
     print_success "System requirements check passed"
     return 0
+}
+
+# Function to install required Python packages
+install_python_packages() {
+    print_status "Installing required Python packages..."
+    
+    # Create array of required packages
+    declare -a REQUIRED_PACKAGES=("pyserial")
+    declare -a PACKAGE_DESCRIPTIONS=("ESP32 serial communication")
+    
+    # Check if packages are already installed
+    local install_needed=false
+    for i in "${!REQUIRED_PACKAGES[@]}"; do
+        package="${REQUIRED_PACKAGES[$i]}"
+        description="${PACKAGE_DESCRIPTIONS[$i]}"
+        
+        # Convert package name for import (pyserial -> serial)
+        import_name="$package"
+        if [ "$package" = "pyserial" ]; then
+            import_name="serial"
+        fi
+        
+        if python3 -c "import $import_name" 2>/dev/null; then
+            print_success "$package is already installed ($description)"
+        else
+            print_status "Need to install $package for $description"
+            install_needed=true
+        fi
+    done
+    
+    # Install packages if needed
+    if [ "$install_needed" = true ]; then
+        print_status "Installing Python packages..."
+        
+        # Try different installation methods
+        for package in "${REQUIRED_PACKAGES[@]}"; do
+            import_name="$package"
+            if [ "$package" = "pyserial" ]; then
+                import_name="serial"
+            fi
+            
+            if ! python3 -c "import $import_name" 2>/dev/null; then
+                print_status "Installing $package..."
+                
+                # Method 1: pip3 with --user
+                if pip3 install "$package" --user --quiet 2>/dev/null; then
+                    print_success "$package installed successfully with pip3"
+                # Method 2: python3 -m pip with --user  
+                elif python3 -m pip install "$package" --user --quiet 2>/dev/null; then
+                    print_success "$package installed successfully with python3 -m pip"
+                # Method 3: Try without --user (may require sudo)
+                elif pip3 install "$package" --quiet 2>/dev/null; then
+                    print_success "$package installed successfully (system-wide)"
+                else
+                    print_error "Failed to install $package automatically"
+                    print_error "Please install manually: pip3 install $package"
+                    print_warning "Setup will continue, but ESP32 features may be limited"
+                fi
+            fi
+        done
+    else
+        print_success "All required Python packages are already installed"
+    fi
+    
+    # Final verification
+    print_status "Verifying Python package installation..."
+    if python3 -c "import serial.tools.list_ports; print('✓ pyserial working')" 2>/dev/null; then
+        print_success "Python package verification successful"
+    else
+        print_warning "Python package verification failed"
+        print_warning "ESP32 device detection may not work properly"
+        print_status "You can manually install with: pip3 install pyserial"
+    fi
 }
 
 # Function to run setup

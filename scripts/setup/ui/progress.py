@@ -45,9 +45,13 @@ class ProgressBar:
         
         bar = self.char * filled_width + self.empty_char * empty_width
         
-        # Clear line and print progress
+        # Create the progress line
+        progress_line = f"📊 [{bar}] {percentage:6.1f}% {message}"
+        
+        # Clear the entire line and print progress
         sys.stdout.write('\r')
-        sys.stdout.write(f"📊 [{bar}] {percentage:6.1f}% {message}")
+        sys.stdout.write('\033[K')  # Clear to end of line
+        sys.stdout.write(progress_line)
         sys.stdout.flush()
         
     def __enter__(self):
@@ -72,6 +76,9 @@ class ProgressBar:
         """Finish the progress bar with success message."""
         self.current = self.total
         self._render(message)
+        # Move to next line to finish the progress bar line
+        sys.stdout.write('\n')
+        sys.stdout.flush()
 
 
 class SpinnerProgress:
