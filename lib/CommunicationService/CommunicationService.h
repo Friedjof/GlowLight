@@ -74,6 +74,8 @@ class CommunicationService {
     void sendSync(uint64_t timestamp);
     void sendWipe(uint16_t numberOfWipes);
 
+    uint32_t getNodeId();
+
     bool onNewConnection(std::function<void()> callback);
     bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback);
 };

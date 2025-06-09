@@ -281,6 +281,14 @@ bool CommunicationService::onNewConnection(std::function<void()> callback) {
   return true;
 }
 
+uint32_t CommunicationService::getNodeId() {
+  if (!MESH_ON || this->mesh == nullptr) {
+    return 0;
+  }
+  
+  return this->mesh->getNodeId();
+}
+
 bool CommunicationService::onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback) {
   this->receivedControllerCallback = callback;
 
