@@ -17,9 +17,30 @@ A beautiful, smart bedside lamp with mesh networking capabilities, gesture contr
 - **📱 Device Management**: Automatic ESP32 detection and flashing
 - **💾 Backup System**: Configuration backup and restore
 
+## 🎭 Available Lighting Modes
+
+### Active Modes
+- **🎨 StaticMode**: Single solid color with full brightness control
+- **🌈 ColorPickerMode**: Cycle through color spectrum with distance sensor
+- **🌈 RainbowMode**: Classic flowing rainbow effect with speed control
+- **✨ RandomGlowMode**: 10-color random transitions with zen to party speeds
+  - *NEW v3.3.0*: Enhanced with 10 scientifically distributed colors (every 36° in HSV space)
+  - Features: Pause/transition cycles, inherited brightness control, mesh synchronization
+  - Speed modes: Zen (meditative) → Normal → Lebendig (energetic) → Hektisch (party)
+
+### Development Modes (Commented)
+- **🕯️ CandleMode**: Realistic candle flicker simulation
+- **🚨 BeaconMode**: Beacon/alert patterns for notifications
+- **🌅 SunsetMode**: Natural sunset simulation for bedtime
+- **💫 StrobeMode**: Synchronized strobe effects across mesh network
+- **🎮 MiniGame**: Interactive games using distance sensor
+
+> **Note**: Development modes are available in the codebase but commented out in `main.cpp`. Uncomment to enable additional lighting effects.
+
 ## 📋 Table of Contents
 
 - [🚀 Quick Setup](#-quick-setup)
+- [🎭 Available Lighting Modes](#-available-lighting-modes)
 - [📸 Gallery](#-gallery)
 - [🔗 Mesh Communication](#-mesh-communication-new)
 - [🔧 Hardware Components](#-hardware-components)
