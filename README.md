@@ -6,6 +6,21 @@
 
 A beautiful, smart bedside lamp with mesh networking capabilities, gesture controls, and multiple lighting modes. Built on ESP32-C3 with 3D-printed components and WS2812B LED strips.
 
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [🎭 Available Lighting Modes](#-available-lighting-modes)
+- [🚀 Quick Setup](#-quick-setup)
+- [📸 Gallery](#-gallery)
+- [🔗 Mesh Communication](#-mesh-communication-new)
+- [🔧 Hardware Components](#-hardware-components)
+  - [Main Components](#main-components)
+  - [3D Printing](#3d-printing)
+  - [Soldering](#soldering)
+- [📦 Software Installation (Advanced)](#-software-installation-advanced)
+- [👨‍💻 Development](#-development)
+- [📄 License](#-license)
+
 ## ✨ Features
 
 - **🎨 Multiple Lighting Modes**: Static colors, rainbow, beacon, candle effect, and more
@@ -36,17 +51,6 @@ A beautiful, smart bedside lamp with mesh networking capabilities, gesture contr
 - **🎮 MiniGame**: Interactive games using distance sensor
 
 > **Note**: Development modes are available in the codebase but commented out in `main.cpp`. Uncomment to enable additional lighting effects.
-
-## 📋 Table of Contents
-
-- [🚀 Quick Setup](#-quick-setup)
-- [🎭 Available Lighting Modes](#-available-lighting-modes)
-- [📸 Gallery](#-gallery)
-- [🔗 Mesh Communication](#-mesh-communication-new)
-- [🔧 Hardware Components](#-hardware-components)
-- [📦 Software Installation](#-software-installation-advanced)
-- [👨‍💻 Development](#-development)
-- [📄 License](#-license)
 
 ## 📸 Gallery
 
