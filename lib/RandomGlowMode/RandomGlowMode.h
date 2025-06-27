@@ -33,7 +33,7 @@ class RandomGlowMode : public AbstractMode {
     static const uint32_t SPEED_CONFIGS[4][2]; // [mode][pauseTime, transitionTime]
     static const String SPEED_NAMES[4];
 
-    // Simplified color palette (6 HSV hues for harmonious variety)
+    // Color palette (10 HSV hues for rich color variety)
     static const uint16_t COLOR_PALETTE[10];
 
     // Current state

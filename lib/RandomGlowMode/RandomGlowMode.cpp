@@ -35,14 +35,15 @@ RandomGlowMode::RandomGlowMode(LightService* lightService, DistanceService* dist
   this->description = "Simplified color flow using inherited brightness control - elegant pause and transition cycles";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
-  this->version = "3.2.0";
+  this->version = "3.2.1";
   this->license = "GPL-3.0";
 }
 
 void RandomGlowMode::setup() {
   // Initialize registry values with optimized defaults
   this->registry.init("speed_mode", RegistryType::INT, 1, 0, 3); // Default to Normal
-  this->registry.init("current_color", RegistryType::INT, 0, 0, 5); // Color palette index
+  this->registry.init("current_color", RegistryType::INT, 0, 0, 9); // Color palette index (0-9 for 10 colors)
+  this->registry.init("next_color", RegistryType::INT, 1, 0, 9); // Next color index
   this->registry.init("distance_locked", RegistryType::BOOL, false);
 
   // Load settings

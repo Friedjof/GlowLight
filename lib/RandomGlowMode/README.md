@@ -1,6 +1,19 @@
-# RandomGlowMode v3.3.0 - 10-Color Rainbow Flow
+# RandomGlowMode v3.2.1 - 10-Color Rainbow Flow
 
 An elegant implementation for continuous color transitions with 10 scientifically optimized colors and clean architecture.
+
+## 🔧 Bug Fixes (v3.2.1)
+
+### Fixed Registry Issues
+- **Fixed range error:** `current_color` registry range corrected from `[0, 5]` to `[0, 9]` to match 10-color palette
+- **Fixed initialization error:** Added missing `next_color` registry key initialization 
+- **Eliminated errors:** No more `[ERROR] Value 6 out of range [0, 5]` or `[ERROR] Key not initialized: next_color`
+
+### Registry Configuration
+```cpp
+this->registry.init("current_color", RegistryType::INT, 0, 0, 9); // 0-9 for 10 colors
+this->registry.init("next_color", RegistryType::INT, 1, 0, 9);    // Next color tracking
+```
 
 ## 🌈 10-Color Rainbow Palette v3.3.0
 
@@ -112,4 +125,3 @@ this->registry.init("distance_locked", ...)// ✅ Lock state
 ---
 
 *Good architecture means: The right thing at the right time in the right place - without redundancy.*
-
