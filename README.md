@@ -238,7 +238,173 @@ The software is written in C++ and is structured as a typical PlatformIO project
 
 ### Classes
 
-![Classes](media/images/diagrams/classes.png)
+```mermaid
+classDiagram
+    %% Main entry point
+    class main {
+        +Controller controller
+        +LightService lightService
+        +CommunicationService communicationService
+        +DistanceService distanceService
+        +GlowRegistry glowRegistry
+        +setup()
+        +loop()
+    }
+
+    %% Core Controller
+    class Controller {
+        -LightService* lightService
+        -CommunicationService* communicationService
+        -DistanceService* distanceService
+        -GlowRegistry* glowRegistry
+        -bool isButtonPressed
+        -unsigned long lastButtonTime
+        +setup(LightService*, CommunicationService*, DistanceService*, GlowRegistry*)
+        +loop()
+    }
+
+    %% Services
+    class LightService {
+        -CRGB leds[NUM_LEDS]
+        -AbstractMode* currentMode
+        -uint8_t brightness
+        -CRGB currentColor
+        +setup()
+        +setMode(AbstractMode*)
+        +update()
+        +setBrightness(uint8_t)
+        +setColor(CRGB)
+        +turnOff()
+    }
+
+    class CommunicationService {
+        -bool connected
+        -uint8_t peerList[MAX_PEERS][6]
+        -int peerCount
+        +setup()
+        +loop()
+        +sendAlert(Alert*)
+        +scanForPeers()
+        -setupESPNow()
+        -addPeer()
+    }
+
+    class DistanceService {
+        +setup()
+        +getDistance()
+    }
+
+    class GlowRegistry {
+        -AbstractMode* modes[MAX_MODES]
+        -const char* modeNames[MAX_MODES]
+        -int modeCount
+        -int currentModeIndex
+        -Preferences preferences
+        +setup()
+        +registerMode(const char*, AbstractMode*)
+        +getMode(const char*)
+        +getNextMode()
+        +setCurrentMode(int)
+        +getCurrentModeName()
+    }
+
+    %% Abstract Mode Interface
+    class AbstractMode {
+        <<abstract>>
+        #unsigned long lastUpdate
+        #unsigned long updateInterval
+        +setup()* 
+        +update(CRGB*, int)* 
+        +reset()* 
+    }
+
+    %% Concrete Mode Implementations
+    class StaticMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class RainbowMode {
+        -uint8_t hue
+        -uint8_t deltaHue
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class CandleMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class RandomGlowMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class SunsetMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class StrobeMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class BeaconMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    class ColorPickerMode {
+        +setup()
+        +update(CRGB*, int)
+        +reset()
+    }
+
+    %% Helper Classes
+    class Alert {
+        -AlertType type
+        -char message[256]
+        -unsigned long timestamp
+        +Alert(AlertType, const char*)
+        +getType()
+        +getMessage()
+        +getTimestamp()
+    }
+
+    %% Relationships
+    main --> Controller : creates
+    main --> LightService : creates
+    main --> CommunicationService : creates
+    main --> DistanceService : creates
+    main --> GlowRegistry : creates
+
+    Controller --> LightService : uses
+    Controller --> CommunicationService : uses
+    Controller --> DistanceService : uses
+    Controller --> GlowRegistry : uses
+
+    LightService --> AbstractMode : uses current mode
+    CommunicationService --> Alert : sends/receives
+    GlowRegistry --> AbstractMode : manages all modes
+
+    AbstractMode <|-- StaticMode : implements
+    AbstractMode <|-- RainbowMode : implements
+    AbstractMode <|-- CandleMode : implements
+    AbstractMode <|-- RandomGlowMode : implements
+    AbstractMode <|-- SunsetMode : implements
+    AbstractMode <|-- StrobeMode : implements
+    AbstractMode <|-- BeaconMode : implements
+    AbstractMode <|-- ColorPickerMode : implements
+```
 
 ### Modes
 
