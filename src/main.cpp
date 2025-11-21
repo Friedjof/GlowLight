@@ -1,116 +1,89 @@
 #include <Arduino.h>
-#include <Button2.h>
-#include <Wire.h>
 
-// Controller and services
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <WiFi.h>
+
 #include "Controller.h"
+
+#include "LinkService.h"
+#include "GlowRegistry.h"
+
 #include "LightService.h"
 #include "DistanceService.h"
-#include "CommunicationService.h"
+#include "ButtonService.h"
 
-// Modes
-#include "Alert.h"
-#include "StaticMode.h"
-#include "ColorPickerMode.h"
-#include "RainbowMode.h"
-#include "RandomGlowMode.h"
-//#include "BeaconMode.h"
-//#include "CandleMode.h"
-//#include "SunsetMode.h"
-//#include "StrobeMode.h"
-//#include "MiniGame.h"
-
-// Config
-#include "GlowConfig.h"
-
-// Scheduler
-Scheduler scheduler;
-
-// Services
-Button2 button;
+LinkService linkService;
+GlowRegistry registry(&linkService);
 
 LightService lightService;
 DistanceService distanceService;
-CommunicationService communicationService(&scheduler);
+ButtonService buttonService;
 
-// Controller
-Controller controller(&distanceService, &communicationService);
+Controller controller(&registry, &lightService, &distanceService, &buttonService, &linkService);
 
-// Light modes
-Alert alertMode(&lightService, &distanceService, &communicationService);
-StaticMode staticMode(&lightService, &distanceService, &communicationService);
-ColorPickerMode colorPickerMode(&lightService, &distanceService, &communicationService);
-RainbowMode rainbowMode(&lightService, &distanceService, &communicationService);
-RandomGlowMode randomGlowMode(&lightService, &distanceService, &communicationService);
-//BeaconMode beaconMode(&lightService, &distanceService, &communicationService);
-//CandleMode candleMode(&lightService, &distanceService, &communicationService);
-//SunsetMode sunsetMode(&lightService, &distanceService, &communicationService);
-//StrobeMode strobeMode(&lightService, &distanceService, &communicationService);
-//MiniGame miniGame(&lightService, &distanceService, &communicationService);
+// ---- Function Declarations ----
+void onDataRecv(const esp_now_recv_info_t *esp_now_info, const uint8_t *incomingData, int len);
+void simpleClickHandler(Button2 &b);
+void doubleClickHandler(Button2 &b);
+void longClickHandler(Button2 &b);
 
-/*
- * This is the main setup function; it is called only once during startup.
- */
+
 void setup() {
   Serial.begin(115200);
 
-  // Setup I2C for the distance sensor
-  Wire.begin(DISTANCE_SENSOR_SDA, DISTANCE_SENSOR_SCL);
+  // ---- Setup Services ----
+  linkService.setup();
+  registry.setup();
 
-  Serial.println("[INFO] Starting Glow");
-
-  // Setup services
   lightService.setup();
   distanceService.setup();
-  communicationService.setup();
+  buttonService.setup();
 
-  button.begin(BUTTON_PIN);
-
-  // Set debounce time (this is the time the button needs to be stable before a press is registered)
-  button.setLongClickTime(500);
-
-  // The modes need to be added to the controller and the order will be the order of the modes
-  controller.addMode(&staticMode);
-  controller.addMode(&colorPickerMode);
-  controller.addMode(&rainbowMode);
-  controller.addMode(&randomGlowMode);
-  //controller.addMode(&beaconMode);
-  //controller.addMode(&candleMode);
-  //controller.addMode(&sunsetMode);
-  //controller.addMode(&strobeMode);
-  //controller.addMode(&miniGame);
-
-  // Set alert mode
-  controller.setAlertMode(&alertMode);
-
-  // Setup controller
+  // ---- Setup Controller ----
   controller.setup();
 
-  // Configure button handlers
-  button.setLongClickHandler([](Button2 &btn) {
-    controller.nextMode();
+  // ---- Register Callbacks ----
+  // Register ESP-NOW receive callback
+  esp_now_register_recv_cb(onDataRecv);
+  // Set button event handlers
+  buttonService.setSimpleClickHandler(simpleClickHandler);
+  buttonService.setDoubleClickHandler(doubleClickHandler);
+  buttonService.setLongClickHandler(longClickHandler);
+  // Set registry data handler
+  linkService.setDataHandler([](JsonDocument doc) {
+    registry.receive(doc);
+  });
+  // Set controller command handler
+  linkService.setCommandHandler([](JsonDocument doc) {
+    controller.command(doc);
   });
 
-  button.setClickHandler([](Button2 &btn) {
-    controller.nextOption();
-  });
-
-  // This click can be used for custom actions in the current mode
-  button.setDoubleClickHandler([](Button2 &btn) {
-    controller.customClick();
-  });
-
-  Serial.println("[INFO] GlowLight started");
+  // ---- Finalize Setup ----
+  Serial.println("ESP-NOW Initialized");
+  Serial.print("MAC Address: ");
+  Serial.println(WiFi.macAddress());
 }
 
-/*
- * This is the main loop function; it is called repeatedly by the system.
- */
 void loop() {
-  // The services and controller need to be looped
-  button.loop();
   controller.loop();
-  lightService.loop();
-  distanceService.loop();
-  communicationService.loop();
+}
+
+// ---- Callbacks ----
+// Callback when data is received
+void onDataRecv(const esp_now_recv_info_t *esp_now_info, const uint8_t *incomingData, int len) {
+  controller.receive(esp_now_info, incomingData, len);
+}
+
+// Callbacks for button events
+void simpleClickHandler(Button2 &b) {
+  controller.simpleClickHandler();
+}
+
+void doubleClickHandler(Button2 &b) {
+  controller.doubleClickHandler();
+}
+
+void longClickHandler(Button2 &b) {
+  controller.longClickHandler();
 }

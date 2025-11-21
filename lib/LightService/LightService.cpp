@@ -5,6 +5,8 @@ LightService::LightService() {
   FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(this->currentLeds, LED_NUM_LEDS);
 }
 
+LightService::~LightService() { }
+
 void LightService::setup() {
   this->setBrightness(LED_MAX_BRIGHTNESS);
 }
@@ -136,4 +138,4 @@ void LightService::show() {
   }
 
   FastLED.show();
-}
+} 

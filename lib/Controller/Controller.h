@@ -2,54 +2,46 @@
 #define CONTROLLER_H
 
 #include <Arduino.h>
-#include <ArrayList.h>
 
-#include "AbstractMode.h"
-#include "Alert.h"
-
+#include "GlowRegistry.h"
+#include "LightService.h"
 #include "DistanceService.h"
-#include "CommunicationService.h"
+#include "ButtonService.h"
+#include "LinkService.h"
+
+#include "GlowTypes.h"
+#include "GlowConfig.h"
 
 
 class Controller {
   private:
-    ArrayList<AbstractMode*> modes;
-    Alert* alertMode = nullptr;
-
-    uint8_t currentModeIndex = 0;
-    AbstractMode* currentMode = nullptr;
-    AbstractMode* previousMode = nullptr;
-
+    GlowRegistry* registry;
+    LightService* lightService;
     DistanceService* distanceService;
-    CommunicationService* communicationService;
+    ButtonService* buttonService;
+    LinkService* linkService;
 
-    void enableAlert(uint8_t flashes, CRGB color);
-    void enableAlert(uint8_t flashes);
-    void disableAlert();
-    bool alertEnabled();
+    uint64_t lastSequence = 0;
+    bool initSequenceInitialized = false;
+    bool initSequenceCompleted = false;
+    uint8_t initSequenceCycles = 0;
+    int8_t initSequenceDirection = 1;
 
-    void printSwitchedMode(AbstractMode* mode);
-
-    void event();
-
-    void newConnectionCallback();
-    void newMessageCallback(uint32_t from, JsonDocument doc, MessageType type);
+    void initSequences();
 
   public:
-    Controller(DistanceService* distanceService, CommunicationService* communicationService);
-
-    void setAlertMode(Alert* mode);
-
-    void addMode(AbstractMode* mode);
-    void nextMode();
-    void setMode(String title);
-
-    void nextOption();
-    void setOption(uint8_t option);
-    void customClick();
+    Controller(GlowRegistry* registry, LightService* lightService, DistanceService* distanceService, ButtonService* buttonService, LinkService* linkService);
+    ~Controller();
 
     void setup();
     void loop();
+
+    void receive(const esp_now_recv_info_t* info, const uint8_t* data, int len);
+    String command(JsonDocument doc);
+
+    void simpleClickHandler();
+    void doubleClickHandler();
+    void longClickHandler();
 };
 
-#endif
+#endif // CONTROLLER_H

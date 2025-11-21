@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+
 #include "GlowConfig.h"
 
 
@@ -16,6 +17,7 @@ class LightService {
 
   public:
     LightService();
+    ~LightService();
 
     void setup();
     void loop();
