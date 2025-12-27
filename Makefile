@@ -34,6 +34,8 @@ monitor2:
 clean:
 	$(PLATFORMIO) run --target clean --environment $(BOARD)
 
+run: upload monitor
+
 flash: upload monitor
 
 flash1: upload1 monitor1

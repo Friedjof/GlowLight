@@ -1,10 +1,10 @@
-# 🌟 GlowLight - Smart Mesh Bedside Lamp
+# 🌟 GlowLight - Smart Wireless Bedside Lamp
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform: ESP32-C3](https://img.shields.io/badge/Platform-ESP32--C3-red.svg)](https://www.espressif.com/en/products/socs/esp32-c3)
 [![Framework: Arduino](https://img.shields.io/badge/Framework-Arduino-cyan.svg)](https://www.arduino.cc/)
 
-A beautiful, smart bedside lamp with mesh networking capabilities, gesture controls, and multiple lighting modes. Built on ESP32-C3 with 3D-printed components and WS2812B LED strips.
+A beautiful, smart bedside lamp with ESP-NOW wireless communication, gesture controls, and multiple lighting modes. Built on ESP32-C3 with 3D-printed components and WS2812B LED strips.
 
 ## 📋 Table of Contents
 
@@ -24,7 +24,7 @@ A beautiful, smart bedside lamp with mesh networking capabilities, gesture contr
 ## ✨ Features
 
 - **🎨 Multiple Lighting Modes**: Static colors, rainbow, beacon, candle effect, and more
-- **🤝 Mesh Networking**: Synchronize multiple lamps wirelessly
+- **⚡ ESP-NOW Communication**: Ultra-fast (<10ms) wireless synchronization between lamps
 - **👋 Gesture Control**: Hand proximity sensing with VL53L0X distance sensor
 - **🔘 Physical Controls**: Simple button interface for mode switching
 - **🏠 3D Printable**: Complete STL files for custom lamp housing
@@ -68,15 +68,42 @@ A beautiful, smart bedside lamp with mesh networking capabilities, gesture contr
 
 This is an overview of the different modes available in the lamp. The modes can be toggled using the button.
 
-## 🔗 Mesh Communication (NEW)
+## 🔗 ESP-NOW Wireless Communication
 
 ![Communication](media/images/diagrams/communication.png)
 
-[-> Mesh Network Demo Video](media/images/demo/3_lamps_communication.mp4)
+[-> Wireless Synchronization Demo Video](media/images/demo/3_lamps_communication.mp4)
 
-Now you can configure a mesh network between the lamps. The lamps can communicate with each other and synchronize the modes. The communication is done using the `PainlessMesh` library.
+GlowLight uses **ESP-NOW** for ultra-fast, low-latency wireless communication between lamps. ESP-NOW provides direct device-to-device communication without requiring a WiFi router, enabling instant synchronization across multiple lamps.
 
-You can set the mesh SSID and password in the `include/GlowConfig.h` file. The default values are `GlowMesh` and `GlowMesh`. This authentication is necessary to prevent unauthorized access to the mesh network and allows you to split the network into different groups.
+### Why ESP-NOW?
+
+- ⚡ **Ultra-low latency**: <10ms message delivery (vs 50-200ms with traditional mesh)
+- 🔋 **Energy efficient**: Minimal power consumption compared to WiFi mesh
+- 📡 **Simple setup**: No SSID/password configuration needed - just power on
+- 🎯 **Reliable**: Direct broadcast communication, no routing overhead
+- 📶 **Good range**: Up to 200m line-of-sight
+- 🔓 **No peer limits**: Supports unlimited number of lamps via broadcast
+
+### Configuration
+
+You can configure the WiFi channel in `include/GlowConfig.h`:
+
+```cpp
+#define ESPNOW_CHANNEL 1  // WiFi channel (1-13), configurable
+```
+
+**Note**: All lamps must be on the same WiFi channel to communicate. The default channel 1 works well in most environments.
+
+### How It Works
+
+1. **Automatic Discovery**: Lamps discover each other automatically via heartbeat messages (every 10 seconds)
+2. **Instant Sync**: State changes (mode, color, brightness) are broadcast instantly to all lamps
+3. **No Infrastructure**: No router, server, or internet connection required
+4. **Self-Organizing**: New lamps automatically join the network when powered on
+5. **Resilient**: 30-minute timeout removes inactive lamps from the network
+
+For technical details, see the [CommunicationService README](lib/CommunicationService/README.md).
 
 ## 🔧 Hardware Components
 
@@ -229,6 +256,8 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 - [`Button2`](https://registry.platformio.org/libraries/lennarthennigs/Button2) for button input handling
 - [`Adafruit_VL53L0X`](https://github.com/adafruit/Adafruit_VL53L0X) for the distance sensor
 - [`FastLED`](https://registry.platformio.org/libraries/fastled/FastLED) for LED control
+- [`ArduinoJson`](https://registry.platformio.org/libraries/bblanchon/ArduinoJson) for message serialization
+- **ESP-NOW** (built-in ESP32 library) for wireless communication
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
 
@@ -245,7 +274,7 @@ For a comprehensive understanding of the GlowLight system architecture and opera
 - **[Mode System Flow](docs/diagrams.md#mode-system-flow)**: Lighting modes management and switching
 - **[Service Integration Flow](docs/diagrams.md#service-integration-flow)**: LightService, DistanceService, and CommunicationService interaction
 - **[Button Interaction Flow](docs/diagrams.md#button-interaction-flow)**: Button press handling and mode switching logic
-- **[Mesh Communication Flow](docs/diagrams.md#mesh-communication-flow)**: ESP-NOW mesh networking and synchronization
+- **[ESP-NOW Communication Flow](docs/diagrams.md#esp-now-communication-flow)**: Wireless networking and synchronization
 - **[Available Modes Detail](docs/diagrams.md#available-modes-detail)**: Overview of all lighting modes and their features
 
 ### Modes

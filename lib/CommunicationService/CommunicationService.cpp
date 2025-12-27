@@ -1,82 +1,113 @@
 #include "CommunicationService.h"
 
 
-CommunicationService::CommunicationService(Scheduler* scheduler) {
-  this->scheduler = scheduler;
+// Static instance for callback
+CommunicationService* CommunicationService::instance = nullptr;
+
+CommunicationService::CommunicationService() {
+  // No scheduler needed anymore
 }
 
 CommunicationService::~CommunicationService() {
-  if (this->mesh != nullptr) {
-    delete this->mesh;
+  if (this->espNowInitialized) {
+    esp_now_deinit();
   }
 }
 
 // main functions
 void CommunicationService::setup() {
   if (!MESH_ON) {
-    Serial.println("[INFO] Mesh-Netzwerk is disabled");
+    Serial.println("[INFO] Communication disabled");
     return;
   }
 
-  // Mesh-Netzwerk initialized
-  if (this->mesh != nullptr) {
-    this->mesh->init(MESH_PREFIX, MESH_PASSWORD, this->scheduler, MESH_PORT);
+  // Set WiFi to station mode (required for ESP-NOW)
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
 
-    // set rtc time to 0
-    this->setTimestamp(0);
-    Serial.println("[INFO] RTC time initialized");
+  // Get local MAC address
+  WiFi.macAddress(this->localMac);
+  this->localNodeId = macToNodeId(this->localMac);
 
-    // initialize mesh
-    this->mesh->onReceive(std::bind(&CommunicationService::receivedCallback, this, std::placeholders::_1, std::placeholders::_2));
-    this->mesh->onNewConnection(std::bind(&CommunicationService::newConnectionCallback, this, std::placeholders::_1));
-    this->mesh->onChangedConnections(std::bind(&CommunicationService::changedConnectionsCallback, this));
+  char macStr[18];
+  macToString(this->localMac, macStr);
+  Serial.printf("[INFO] Local MAC: %s, NodeID: %u\n", macStr, this->localNodeId);
+
+  // Initialize ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("[ERROR] ESP-NOW initialization failed");
+    return;
+  }
+
+  this->espNowInitialized = true;
+  Serial.println("[INFO] ESP-NOW initialized");
+
+  // Set static instance for callback
+  CommunicationService::instance = this;
+
+  // Register receive callback
+  esp_now_register_recv_cb(CommunicationService::onDataRecv);
+
+  // Add broadcast peer (one time)
+  uint8_t broadcastAddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_now_peer_info_t broadcastPeer;
+  memset(&broadcastPeer, 0, sizeof(broadcastPeer));
+  memcpy(broadcastPeer.peer_addr, broadcastAddr, 6);
+  broadcastPeer.channel = ESPNOW_CHANNEL;
+  broadcastPeer.encrypt = false;
+
+  if (esp_now_add_peer(&broadcastPeer) != ESP_OK) {
+    Serial.println("[ERROR] Failed to add broadcast peer");
+    return;
   }
 
   Serial.println("[INFO] CommunicationService initialized");
 }
 
 void CommunicationService::loop() {
-  if (!MESH_ON) return;
+  if (!MESH_ON || !this->espNowInitialized) return;
 
-  if (this->mesh != nullptr) {
-    this->mesh->update();
-  }
-
+  // Send heartbeat
   if (millis() - this->last_hartbeat > HARTBEAT_INTERVAL) {
     this->last_hartbeat = millis();
     this->broadcast("{\"type\":2}");
-
     Serial.println("[DEBUG] Heartbeat sent");
   }
 
+  // Remove old nodes
   this->removeOldNodes();
 }
 
 // communication functions
-void CommunicationService::send(String message, GlowNode node) {
-  if (!MESH_ON) return;
-  
-  if (this->mesh != nullptr) {
-    this->mesh->sendSingle(node.id, message);
-    Serial.printf("[INFO] Message sent to %u: %s\n", node.id, message.c_str());
-  } else {
-    Serial.println("[ERROR] Mesh is not initialized");
-  }
-}
-
 void CommunicationService::broadcast(String message) {
-  if (!MESH_ON) return;
+  if (!MESH_ON || !this->espNowInitialized) return;
 
-  if (this->nodes.size() == 0) {
-    Serial.println("[DEBUG] No nodes available, cannot broadcast message");
+  // Check message size
+  if (message.length() > ESPNOW_MAX_PAYLOAD) {
+    Serial.printf("[ERROR] Message too large: %d bytes (max %d)\n",
+                  message.length(), ESPNOW_MAX_PAYLOAD);
     return;
   }
 
-  if (mesh != nullptr) {
-    mesh->sendBroadcast(message);
-    Serial.printf("[DEBUG] Broadcast message sent: %s\n", message.c_str());
+  // Build ESP-NOW message
+  ESPNowMessage msg;
+  memcpy(msg.senderMac, this->localMac, 6);
+  msg.senderNodeId = this->localNodeId;
+  msg.payloadLength = message.length();
+  memcpy(msg.payload, message.c_str(), msg.payloadLength);
+
+  // Calculate actual message size
+  size_t msgSize = sizeof(msg.senderMac) + sizeof(msg.senderNodeId) +
+                   sizeof(msg.payloadLength) + msg.payloadLength;
+
+  // Send broadcast
+  uint8_t broadcastAddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_err_t result = esp_now_send(broadcastAddr, (uint8_t*)&msg, msgSize);
+
+  if (result == ESP_OK) {
+    Serial.printf("[DEBUG] Broadcast sent: %s\n", message.c_str());
   } else {
-    Serial.println("[ERROR] Mesh is not initialized");
+    Serial.printf("[ERROR] Broadcast failed: %d\n", result);
   }
 }
 
@@ -128,14 +159,84 @@ void CommunicationService::sendWipe(uint16_t numberOfWipes) {
   Serial.println("[DEBUG] Wipe message sent");
 }
 
-// time functions
-uint64_t CommunicationService::getTimestamp() {
-  return (uint64_t)time(nullptr);
+// Helper functions
+uint32_t CommunicationService::macToNodeId(const uint8_t* mac) {
+  uint32_t id = 0;
+  id |= ((uint32_t)mac[3] << 24);
+  id |= ((uint32_t)mac[4] << 16);
+  id |= ((uint32_t)mac[5] << 8);
+  id |= (uint8_t)(mac[0] ^ mac[1] ^ mac[2]);
+  return id;
 }
 
-void CommunicationService::setTimestamp(uint64_t timestamp) {
-  struct timeval tv = { static_cast<time_t>(timestamp), 0 };
-  settimeofday(&tv, nullptr);
+void CommunicationService::macToString(const uint8_t* mac, char* buffer) {
+  sprintf(buffer, "%02X:%02X:%02X:%02X:%02X:%02X",
+          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, int len) {
+  if (instance == nullptr) return;
+
+  Serial.printf("[DEBUG] ESP-NOW received %d bytes\n", len);
+
+  // Validate message size
+  if (len < 12) {  // Minimum header size
+    Serial.printf("[ERROR] Received message too small: %d bytes\n", len);
+    return;
+  }
+
+  // print debug info
+  Serial.println("[DEBUG] Received raw data:");
+  Serial.write(data, len);
+  Serial.println();
+
+  // Read header manually (no struct to avoid padding issues)
+  uint8_t senderMac[6];
+  uint32_t senderNodeId;
+  uint16_t payloadLength;
+
+  memcpy(senderMac, data, 6);
+  memcpy(&senderNodeId, data + 6, 4);
+  memcpy(&payloadLength, data + 10, 2);
+
+  char macStr[18];
+  sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
+          senderMac[0], senderMac[1], senderMac[2],
+          senderMac[3], senderMac[4], senderMac[5]);
+
+  Serial.printf("[DEBUG] Header: MAC=%s, NodeID=%u, PayloadLen=%u\n",
+                macStr, senderNodeId, payloadLength);
+
+  // Validate sender MAC
+  if (memcmp(mac, senderMac, 6) != 0) {
+    Serial.println("[ERROR] MAC mismatch in received message");
+    return;
+  }
+
+  // Validate payload length
+  if (payloadLength > ESPNOW_MAX_PAYLOAD) {
+    Serial.printf("[ERROR] Invalid payload length: %u (max %d)\n",
+                  payloadLength, ESPNOW_MAX_PAYLOAD);
+    return;
+  }
+
+  // Validate total message size
+  if (len < 12 + payloadLength) {
+    Serial.printf("[ERROR] Message truncated: expected %d bytes, got %d\n",
+                  12 + payloadLength, len);
+    return;
+  }
+
+  // Extract payload
+  char payload[ESPNOW_MAX_PAYLOAD + 1];
+  memcpy(payload, data + 12, payloadLength);
+  payload[payloadLength] = '\0';
+
+  Serial.printf("[DEBUG] Payload (%u bytes): %s\n", payloadLength, payload);
+
+  // Create String and call receivedCallback
+  String msgStr(payload);
+  instance->receivedCallback(senderNodeId, msgStr);
 }
 
 // manage nodes
@@ -226,6 +327,11 @@ bool CommunicationService::nodeExists(uint32_t id) {
 
 // callbacks
 void CommunicationService::receivedCallback(uint32_t from, String &msg) {
+  // Ignore messages from self
+  if (from == this->localNodeId) {
+    return;
+  }
+
   Serial.printf("[DEBUG] Message received from %u: %s\n", from, msg.c_str());
 
   JsonDocument doc;
@@ -245,13 +351,17 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
     return;
   }
 
-  // update node
-  this->updateNode(from);
+  // Update node (auto-discovery happens here)
+  bool isNewNode = !this->updateNode(from);
 
-  // if the message is a heartbeat, ignore sending it to the controller
+  // Call callback for new nodes
+  if (isNewNode && this->alertCallback != nullptr) {
+    this->alertCallback();
+  }
+
+  // If heartbeat, ignore (already updated node)
   if (type == MessageType::HEARTBEAT) {
     Serial.println("[DEBUG] Heartbeat message received, ignoring message");
-    
     return;
   }
 
@@ -263,18 +373,6 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   this->receivedControllerCallback(from, message, type);
 }
 
-void CommunicationService::newConnectionCallback(uint32_t nodeId) {
-  Serial.printf("[INFO] GlowNode connected: %u\n", nodeId);
-
-  if (this->alertCallback != nullptr && !this->updateNode(nodeId)) {
-    this->alertCallback();
-  }
-}
-
-void CommunicationService::changedConnectionsCallback() {
-  Serial.println("[INFO] Connections changed");
-}
-
 bool CommunicationService::onNewConnection(std::function<void()> callback) {
   this->alertCallback = callback;
 
@@ -282,19 +380,19 @@ bool CommunicationService::onNewConnection(std::function<void()> callback) {
 }
 
 uint32_t CommunicationService::getNodeId() {
-  if (!MESH_ON || this->mesh == nullptr) {
+  if (!MESH_ON) {
     return 0;
   }
-  
-  return this->mesh->getNodeId();
+
+  return this->localNodeId;
 }
 
 uint32_t CommunicationService::getMeshTime() {
-  if (!MESH_ON || this->mesh == nullptr) {
-    return millis();  // Fallback to local time if mesh is off
+  if (!MESH_ON) {
+    return millis();
   }
-  
-  return this->mesh->getNodeTime();
+
+  return millis();  // Use local time instead of mesh time
 }
 
 bool CommunicationService::onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback) {

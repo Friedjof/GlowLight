@@ -23,15 +23,12 @@
 // Config
 #include "GlowConfig.h"
 
-// Scheduler
-Scheduler scheduler;
-
 // Services
 Button2 button;
 
 LightService lightService;
 DistanceService distanceService;
-CommunicationService communicationService(&scheduler);
+CommunicationService communicationService;
 
 // Controller
 Controller controller(&distanceService, &communicationService);

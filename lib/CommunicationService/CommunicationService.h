@@ -6,7 +6,8 @@
 
 #include <ArrayList.h>
 #include <ArduinoJson.h>
-#include <painlessMesh.h>
+#include <esp_now.h>
+#include <WiFi.h>
 
 #include "GlowConfig.h"
 
@@ -29,8 +30,20 @@ enum MessageType {
 
 class CommunicationService {
   private:
-    painlessMesh* mesh = new painlessMesh();
-    Scheduler* scheduler = nullptr;
+    // ESP-NOW Members
+    uint8_t localMac[6];
+    uint32_t localNodeId;
+    bool espNowInitialized = false;
+
+    // ESP-NOW Message structure (packed to avoid alignment padding)
+    struct __attribute__((packed)) ESPNowMessage {
+      uint8_t senderMac[6];
+      uint32_t senderNodeId;
+      uint16_t payloadLength;
+      char payload[ESPNOW_MAX_PAYLOAD];
+    };
+
+    static CommunicationService* instance; // For static callback
 
     std::function<void()> alertCallback = nullptr;
     std::function<void(uint32_t, JsonDocument, MessageType)> receivedControllerCallback = nullptr;
@@ -40,10 +53,13 @@ class CommunicationService {
     // the CommunicationService will send periodic heartbeats to the other nodes to let them know it's still alive
     uint64_t last_hartbeat = 0;
 
+    // Helper functions
+    uint32_t macToNodeId(const uint8_t* mac);
+    void macToString(const uint8_t* mac, char* buffer);
+    static void onDataRecv(const uint8_t* mac, const uint8_t* data, int len);
+
     void receivedCallback(uint32_t from, String &msg);
-    void newConnectionCallback(uint32_t nodeId);
-    void changedConnectionsCallback();
-    void nodeTimeAdjustedCallback(int32_t offset);
+    void broadcast(String message);
 
     void addNode(uint32_t id);
     uint16_t getNode(uint32_t id, GlowNode* node);
@@ -53,15 +69,8 @@ class CommunicationService {
     void removeOldNodes();
     bool nodeExists(uint32_t id);
 
-    // time
-    uint64_t getTimestamp();
-    void setTimestamp(uint64_t timestamp);
-
-    void send(String message, GlowNode node);
-    void broadcast(String message);
-
   public:
-    CommunicationService(Scheduler* scheduler);
+    CommunicationService();
     ~CommunicationService();
 
     void setup();
