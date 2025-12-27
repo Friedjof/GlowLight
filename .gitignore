@@ -2,6 +2,7 @@
 .vscode/
 
 include/GlowConfig.h
+include/*.bak
 include/backups/
 
 **/.$*
