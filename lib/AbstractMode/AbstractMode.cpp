@@ -255,3 +255,14 @@ void AbstractMode::modeSetup() {
   this->registry.init("currentOption", RegistryType::INT, 0, 0, this->getNumberOfOptions() - 1);
   this->registry.init("brightness", RegistryType::INT, LED_DEFAULT_BRIGHTNESS, 0, LED_MAX_BRIGHTNESS);
 }
+
+void AbstractMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
+  // Default: Apply as brightness
+  // Convert level to brightness using exponential normalization
+  uint16_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
+
+  this->lightService->setBrightness(brightness);
+  this->brightness = brightness;
+
+  Serial.printf("[DEBUG] Remote update applied: Brightness=%d\n", brightness);
+}

@@ -66,7 +66,6 @@ class AbstractMode {
 
 		bool addOption(String title, std::function<void()> callback, bool alert = true, bool onlyOnce = false, bool disabled = false);
 		bool callCurrentOption();
-		bool recallCurrentOption();
 
 	public:
 		AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
@@ -79,6 +78,10 @@ class AbstractMode {
 		String getLicense();
 
 		bool optionHasChanged();
+
+		bool recallCurrentOption();
+
+		virtual void applyRemoteUpdate(uint16_t distance, uint16_t level);
 
 		bool setBrightness();
 		bool resetBrightness();

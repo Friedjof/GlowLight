@@ -27,8 +27,8 @@
 Button2 button;
 
 LightService lightService;
-DistanceService distanceService;
 CommunicationService communicationService;
+DistanceService distanceService(&communicationService);
 
 // Controller
 Controller controller(&distanceService, &communicationService);

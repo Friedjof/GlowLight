@@ -289,6 +289,27 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
 
     // set the number of wipes
     this->distanceService->setNumberOfWipes(message["numberOfWipes"].as<uint16_t>());
+  } else if (type == MessageType::LEVEL) {
+    // Live dimming from remote node - simulate sensor input
+
+    // Check format
+    if (!message["distance"].is<uint16_t>() || !message["level"].is<uint16_t>()) {
+      Serial.println("[ERROR] Invalid message level format, ignoring message");
+      return;
+    }
+
+    uint16_t distance = message["distance"].as<uint16_t>();
+    uint16_t level = message["level"].as<uint16_t>();
+
+    Serial.printf("[DEBUG] Distance update received: Distance=%d, Level=%d\n", distance, level);
+
+    // Inject into DistanceService (sets flag to prevent re-broadcast)
+    this->distanceService->setRemoteResult(distance, level);
+
+    // Apply IMMEDIATELY to LEDs (bypasses isObjectPresent checks)
+    if (this->currentMode != nullptr) {
+      this->currentMode->applyRemoteUpdate(distance, level);
+    }
   } else {
     Serial.println("[ERROR] Invalid message type, ignoring message");
   }

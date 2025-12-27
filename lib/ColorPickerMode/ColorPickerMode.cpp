@@ -84,3 +84,39 @@ uint16_t ColorPickerMode::distance2hue(uint16_t distance) {
     return map(distance, DISTANCE_MIN_MM, DISTANCE_MAX_MM, 0, 255);
   }
 }
+
+void ColorPickerMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
+  uint8_t currentOption = this->registry.getInt("currentOption");
+
+  if (currentOption == 0) {
+    // Option 0: Hue
+    // Convert distance to hue (linear mapping)
+    uint16_t hue = this->distance2hue(distance);
+    this->registry.setInt("hue", hue);
+
+    // Update LED immediately
+    this->lightService->updateLed(CHSV(hue, this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
+
+    Serial.printf("[DEBUG] Remote update applied: Hue=%d\n", hue);
+
+  } else if (currentOption == 1) {
+    // Option 1: Saturation
+    // Convert level to saturation
+    uint16_t saturation = this->invExpNormalize(level, 0, DISTANCE_LEVELS, 255, 0.85);
+    this->registry.setInt("saturation", saturation);
+
+    // Update LED immediately
+    this->lightService->updateLed(CHSV(this->registry.getInt("hue"), saturation, LED_MAX_BRIGHTNESS));
+
+    Serial.printf("[DEBUG] Remote update applied: Saturation=%d\n", saturation);
+
+  } else if (currentOption == 2) {
+    // Option 2: Brightness
+    // Use default implementation (convert level to brightness)
+    uint16_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
+    this->lightService->setBrightness(brightness);
+    this->brightness = brightness;
+
+    Serial.printf("[DEBUG] Remote update applied: Brightness=%d\n", brightness);
+  }
+}

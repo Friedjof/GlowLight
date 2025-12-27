@@ -1,6 +1,8 @@
 #include "DistanceService.h"
+#include "CommunicationService.h"
 
-DistanceService::DistanceService() {
+DistanceService::DistanceService(CommunicationService* communicationService) {
+  this->communicationService = communicationService;
   this->sensorPresent = false;
   this->result.distance = 0;
 }
@@ -100,7 +102,15 @@ void DistanceService::loop() {
     Serial.print(this->result.distance);
     Serial.print(" mm, Level: ");
     Serial.println(this->result.level);
+
+    // Send level update to other nodes (only if not from remote)
+    if (this->communicationService != nullptr && !this->resultFromRemote) {
+      this->communicationService->sendDistanceUpdate(this->result.distance, this->result.level);
+    }
   }
+
+  // Reset remote flag after processing
+  this->resultFromRemote = false;
 
   if (this->changing() && !this->isObjectPresent()) {
     this->status = 0x00;
@@ -223,4 +233,12 @@ bool DistanceService::alert() {
   this->sendAlert = false;
 
   return true;
+}
+
+void DistanceService::setRemoteResult(uint16_t distance, uint16_t level) {
+  this->result.distance = distance;
+  this->result.level = level;
+  this->resultFromRemote = true;
+
+  Serial.printf("[DEBUG] Remote result set: Distance=%d, Level=%d\n", distance, level);
 }

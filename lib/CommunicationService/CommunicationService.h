@@ -25,6 +25,7 @@ enum MessageType {
   SYNC = 1,
   HEARTBEAT = 2,
   WIPE = 3,
+  LEVEL = 4,
   MAX
 };
 
@@ -82,6 +83,7 @@ class CommunicationService {
     void sendEvent(JsonDocument event);
     void sendSync(uint64_t timestamp);
     void sendWipe(uint16_t numberOfWipes);
+    void sendDistanceUpdate(uint16_t distance, uint16_t level);
 
     uint32_t getNodeId();
     uint32_t getMeshTime();

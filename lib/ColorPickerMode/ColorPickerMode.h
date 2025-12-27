@@ -18,6 +18,8 @@ class ColorPickerMode : public AbstractMode {
 
     void customClick();
 
+    void applyRemoteUpdate(uint16_t distance, uint16_t level) override;
+
     bool newHue();
     bool newSaturation();
 

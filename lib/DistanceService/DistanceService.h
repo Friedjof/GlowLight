@@ -7,6 +7,7 @@
 
 #include "GlowConfig.h"
 
+class CommunicationService;  // Forward declaration
 
 typedef struct {
   uint16_t distance;
@@ -17,7 +18,7 @@ typedef struct {
 
 class DistanceService {
   public:
-    DistanceService();
+    DistanceService(CommunicationService* communicationService);
     ~DistanceService();
 
     void setup();
@@ -44,8 +45,11 @@ class DistanceService {
 
     bool alert();
 
+    void setRemoteResult(uint16_t distance, uint16_t level);
+
   private:
     Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
+    CommunicationService* communicationService;
 
     result_t result = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 
@@ -62,6 +66,8 @@ class DistanceService {
     bool wipeDetected = false;
     uint16_t numberOfWipes = 0;
     uint64_t lastWipe = 0;
+
+    bool resultFromRemote = false;
 };
 
 #endif

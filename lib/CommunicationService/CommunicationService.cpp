@@ -159,6 +159,23 @@ void CommunicationService::sendWipe(uint16_t numberOfWipes) {
   Serial.println("[DEBUG] Wipe message sent");
 }
 
+void CommunicationService::sendDistanceUpdate(uint16_t distance, uint16_t level) {
+  if (!MESH_ON) return;
+
+  JsonDocument message;
+
+  message["type"] = MessageType::LEVEL;
+  message["message"]["distance"] = distance;
+  message["message"]["level"] = level;
+
+  String msg;
+  serializeJson(message, msg);
+
+  this->broadcast(msg);
+
+  Serial.printf("[DEBUG] Distance update sent: Distance=%d, Level=%d\n", distance, level);
+}
+
 // Helper functions
 uint32_t CommunicationService::macToNodeId(const uint8_t* mac) {
   uint32_t id = 0;
@@ -362,6 +379,18 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   // If heartbeat, ignore (already updated node)
   if (type == MessageType::HEARTBEAT) {
     Serial.println("[DEBUG] Heartbeat message received, ignoring message");
+    return;
+  }
+
+  // If LEVEL message, apply brightness immediately
+  if (type == MessageType::LEVEL) {
+    uint8_t brightness = message["brightness"];
+    Serial.printf("[DEBUG] Level message received: %d\n", brightness);
+
+    // Apply brightness to current mode (done via Controller callback)
+    if (this->receivedControllerCallback != nullptr) {
+      this->receivedControllerCallback(from, message, type);
+    }
     return;
   }
 
