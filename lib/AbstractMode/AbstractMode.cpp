@@ -263,6 +263,4 @@ void AbstractMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
 
   this->lightService->setBrightness(brightness);
   this->brightness = brightness;
-
-  Serial.printf("[DEBUG] Remote update applied: Brightness=%d\n", brightness);
 }

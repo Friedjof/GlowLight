@@ -105,8 +105,6 @@ void Controller::setOption(uint8_t option) {
 
 // custom click function
 void Controller::customClick() {
-  Serial.println("[DEBUG] Custom click");
-
   this->currentMode->customClick();
 
   this->event();
@@ -245,8 +243,6 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
       return;
     }
 
-    Serial.println("[DEBUG] Event message received");
-
     // check if the mode has changed
     if (message["title"].as<String>() != this->currentMode->getTitle()) {
       this->setMode(message["title"].as<String>());
@@ -267,14 +263,9 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
       return;
     }
 
-    Serial.println("[DEBUG] Sync message received");
-
     // if the new GlowNode is younger, it will send the current state
     if (message["timestamp"].as<uint64_t>() < millis()) {
-      Serial.println("[DEBUG] this GlowNode is older and will send the current state");
       this->event();
-    } else {
-      Serial.println("[DEBUG] this GlowNode will not send the current state");
     }
   } else if (type == MessageType::WIPE) {
     // the WIPE message will be triggered if a wipe is detected
@@ -284,8 +275,6 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
       Serial.println("[ERROR] Invalid message wipe format, ignoring message");
       return;
     }
-
-    Serial.println("[DEBUG] Wipe message received");
 
     // set the number of wipes
     this->distanceService->setNumberOfWipes(message["numberOfWipes"].as<uint16_t>());
@@ -300,8 +289,6 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
 
     uint16_t distance = message["distance"].as<uint16_t>();
     uint16_t level = message["level"].as<uint16_t>();
-
-    Serial.printf("[DEBUG] Distance update received: Distance=%d, Level=%d\n", distance, level);
 
     // Inject into DistanceService (sets flag to prevent re-broadcast)
     this->distanceService->setRemoteResult(distance, level);

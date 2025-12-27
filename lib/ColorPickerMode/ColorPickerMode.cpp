@@ -97,8 +97,6 @@ void ColorPickerMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
     // Update LED immediately
     this->lightService->updateLed(CHSV(hue, this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
 
-    Serial.printf("[DEBUG] Remote update applied: Hue=%d\n", hue);
-
   } else if (currentOption == 1) {
     // Option 1: Saturation
     // Convert level to saturation
@@ -108,15 +106,11 @@ void ColorPickerMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
     // Update LED immediately
     this->lightService->updateLed(CHSV(this->registry.getInt("hue"), saturation, LED_MAX_BRIGHTNESS));
 
-    Serial.printf("[DEBUG] Remote update applied: Saturation=%d\n", saturation);
-
   } else if (currentOption == 2) {
     // Option 2: Brightness
     // Use default implementation (convert level to brightness)
     uint16_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
     this->lightService->setBrightness(brightness);
     this->brightness = brightness;
-
-    Serial.printf("[DEBUG] Remote update applied: Brightness=%d\n", brightness);
   }
 }

@@ -98,11 +98,6 @@ void DistanceService::loop() {
     this->lastChange = millis();
     this->status = 0x01;
 
-    Serial.print("[DEBUG] Distance: ");
-    Serial.print(this->result.distance);
-    Serial.print(" mm, Level: ");
-    Serial.println(this->result.level);
-
     // Send level update to other nodes (only if not from remote)
     if (this->communicationService != nullptr && !this->resultFromRemote) {
       this->communicationService->sendDistanceUpdate(this->result.distance, this->result.level);
@@ -120,16 +115,12 @@ void DistanceService::loop() {
   if (this->changing() && millis() - this->lastChange > DISTANCE_HOLD_MS && this->isObjectPresent()) {
     this->status = 0x02;
     this->sendAlert = true;
-
-    Serial.println("[DEBUG] Hold level");
   }
 
   // Release if distance is not changing and is out of range (hand is far from sensor)
   if (this->fixed() && !this->isObjectPresent()) {
     this->status = 0x00;
     this->sendAlert = false;
-
-    Serial.println("[DEBUG] Release level");
   }
 
   if (this->objectDisappeared) {
@@ -239,6 +230,4 @@ void DistanceService::setRemoteResult(uint16_t distance, uint16_t level) {
   this->result.distance = distance;
   this->result.level = level;
   this->resultFromRemote = true;
-
-  Serial.printf("[DEBUG] Remote result set: Distance=%d, Level=%d\n", distance, level);
 }

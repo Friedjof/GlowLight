@@ -71,7 +71,6 @@ void CommunicationService::loop() {
   if (millis() - this->last_hartbeat > HARTBEAT_INTERVAL) {
     this->last_hartbeat = millis();
     this->broadcast("{\"type\":2}");
-    Serial.println("[DEBUG] Heartbeat sent");
   }
 
   // Remove old nodes
@@ -104,9 +103,7 @@ void CommunicationService::broadcast(String message) {
   uint8_t broadcastAddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   esp_err_t result = esp_now_send(broadcastAddr, (uint8_t*)&msg, msgSize);
 
-  if (result == ESP_OK) {
-    Serial.printf("[DEBUG] Broadcast sent: %s\n", message.c_str());
-  } else {
+  if (result != ESP_OK) {
     Serial.printf("[ERROR] Broadcast failed: %d\n", result);
   }
 }
@@ -123,8 +120,6 @@ void CommunicationService::sendEvent(JsonDocument event) {
   serializeJson(message, msg);
 
   this->broadcast(msg);
-
-  Serial.println("[DEBUG] Event message sent");
 }
 
 void CommunicationService::sendSync(uint64_t timestamp) {
@@ -139,8 +134,6 @@ void CommunicationService::sendSync(uint64_t timestamp) {
   serializeJson(message, msg);
 
   this->broadcast(msg);
-
-  Serial.println("[DEBUG] Sync message sent");
 }
 
 void CommunicationService::sendWipe(uint16_t numberOfWipes) {
@@ -155,8 +148,6 @@ void CommunicationService::sendWipe(uint16_t numberOfWipes) {
   serializeJson(message, msg);
 
   this->broadcast(msg);
-
-  Serial.println("[DEBUG] Wipe message sent");
 }
 
 void CommunicationService::sendDistanceUpdate(uint16_t distance, uint16_t level) {
@@ -172,8 +163,6 @@ void CommunicationService::sendDistanceUpdate(uint16_t distance, uint16_t level)
   serializeJson(message, msg);
 
   this->broadcast(msg);
-
-  Serial.printf("[DEBUG] Distance update sent: Distance=%d, Level=%d\n", distance, level);
 }
 
 // Helper functions
@@ -194,18 +183,11 @@ void CommunicationService::macToString(const uint8_t* mac, char* buffer) {
 void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, int len) {
   if (instance == nullptr) return;
 
-  Serial.printf("[DEBUG] ESP-NOW received %d bytes\n", len);
-
   // Validate message size
   if (len < 12) {  // Minimum header size
     Serial.printf("[ERROR] Received message too small: %d bytes\n", len);
     return;
   }
-
-  // print debug info
-  Serial.println("[DEBUG] Received raw data:");
-  Serial.write(data, len);
-  Serial.println();
 
   // Read header manually (no struct to avoid padding issues)
   uint8_t senderMac[6];
@@ -215,14 +197,6 @@ void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, i
   memcpy(senderMac, data, 6);
   memcpy(&senderNodeId, data + 6, 4);
   memcpy(&payloadLength, data + 10, 2);
-
-  char macStr[18];
-  sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
-          senderMac[0], senderMac[1], senderMac[2],
-          senderMac[3], senderMac[4], senderMac[5]);
-
-  Serial.printf("[DEBUG] Header: MAC=%s, NodeID=%u, PayloadLen=%u\n",
-                macStr, senderNodeId, payloadLength);
 
   // Validate sender MAC
   if (memcmp(mac, senderMac, 6) != 0) {
@@ -249,8 +223,6 @@ void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, i
   memcpy(payload, data + 12, payloadLength);
   payload[payloadLength] = '\0';
 
-  Serial.printf("[DEBUG] Payload (%u bytes): %s\n", payloadLength, payload);
-
   // Create String and call receivedCallback
   String msgStr(payload);
   instance->receivedCallback(senderNodeId, msgStr);
@@ -271,8 +243,6 @@ void CommunicationService::addNode(uint32_t id) {
 
     this->nodes.add(newNode);
   }
-
-  Serial.printf("[INFO] New GlowNode %u added\n", id);
 }
 
 uint16_t CommunicationService::getNode(uint32_t id, GlowNode* node) {
@@ -308,7 +278,6 @@ void CommunicationService::removeNode(uint32_t id) {
 void CommunicationService::removeOldNodes() {
   for (int i = 0; i < this->nodes.size(); i++) {
     if (millis() - this->nodes.get(i).lastSeen > GLOW_NODE_TIMEOUT) {
-      Serial.printf("[DEBUG] GlowNode %u removed (timeout)\n", this->nodes.get(i).id);
       this->nodes.remove(i--);
     }
   }
@@ -322,8 +291,6 @@ bool CommunicationService::updateNode(uint32_t id) {
 
     // this might raise a warning (see the issue https://github.com/braydenanderson2014/C-Arduino-Libraries/issues/89)
     this->nodes.set(index, node);
-
-    Serial.printf("[INFO] GlowNode %u updated\n", id);
 
     return true;
   }
@@ -348,8 +315,6 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   if (from == this->localNodeId) {
     return;
   }
-
-  Serial.printf("[DEBUG] Message received from %u: %s\n", from, msg.c_str());
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, msg);
@@ -378,14 +343,12 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
 
   // If heartbeat, ignore (already updated node)
   if (type == MessageType::HEARTBEAT) {
-    Serial.println("[DEBUG] Heartbeat message received, ignoring message");
     return;
   }
 
   // If LEVEL message, apply brightness immediately
   if (type == MessageType::LEVEL) {
     uint8_t brightness = message["brightness"];
-    Serial.printf("[DEBUG] Level message received: %d\n", brightness);
 
     // Apply brightness to current mode (done via Controller callback)
     if (this->receivedControllerCallback != nullptr) {
