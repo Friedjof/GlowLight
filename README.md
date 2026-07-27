@@ -43,14 +43,15 @@ A beautiful, smart bedside lamp with ESP-NOW wireless communication, gesture con
   - Features: Pause/transition cycles, inherited brightness control, mesh synchronization
   - Speed modes: Zen (meditative) → Normal → Lebendig (energetic) → Hektisch (party)
 
-### Development Modes (Commented)
+### Optional Modes
 - **🕯️ CandleMode**: Realistic candle flicker simulation
 - **🚨 BeaconMode**: Beacon/alert patterns for notifications
 - **🌅 SunsetMode**: Natural sunset simulation for bedtime
-- **💫 StrobeMode**: Synchronized strobe effects across mesh network
+- **💫 StrobeMode**: Synchronized strobe effects over ESP-NOW
 - **🎮 MiniGame**: Interactive games using distance sensor
 
-> **Note**: Development modes are available in the codebase but commented out in `main.cpp`. Uncomment to enable additional lighting effects.
+> **Note**: Mode selection is declared in `include/ModeConfig.h`. Set an individual
+> `GLOW_ENABLE_*` switch to `1`, or use the `esp32c3-all-modes` build profile.
 
 ## 📸 Gallery
 
@@ -237,18 +238,20 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 ### PlatformIO Commands
 
 - `pio run`: Compiles the software
+- `pio run --environment esp32c3-all-modes`: Compiles and links every mode
 - `pio run --target upload`: Flashes the software to the ESP32C3
 - `pio run --target clean`: Removes compiled files
 - `pio device monitor`: Opens a terminal to view the ESP32C3 output
 
 ### Makefile Commands
 
-- `make`: Compiles the software
-- `make upload`: Flashes the software to the ESP32C3
+- `make` or `make build`: Compiles the standard profile
+- `make build-all`: Compiles and links every mode
+- `make flash [device-number]`: Flashes the software to the ESP32-C3
 - `make clean`: Removes compiled files
-- `make monitor`: Opens a terminal to view the ESP32C3 output
-- `make flash`: Flashes the software and opens the monitor
-- `make start`: Cleans, compiles, flashes the software, and opens the monitor
+- `make monitor [device-number]`: Opens the serial monitor
+- `make run [device-number]`: Flashes the software and opens the monitor
+- `make list`: Lists matching ESP32-C3 serial devices
 
 ### Libraries Used
 

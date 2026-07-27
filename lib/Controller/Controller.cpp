@@ -7,6 +7,11 @@ Controller::Controller(DistanceService* distanceService, CommunicationService* c
 
 // mode functions
 void Controller::addMode(AbstractMode* mode) {
+  if (mode == nullptr) {
+    Serial.println("[ERROR] Cannot add a null mode");
+    return;
+  }
+
   Serial.print("[INFO] Added mode '");
   Serial.print(mode->getTitle());
   Serial.println("'");
@@ -19,6 +24,12 @@ void Controller::addMode(AbstractMode* mode) {
 }
 
 void Controller::setAlertMode(Alert* mode) {
+  if (mode == nullptr) {
+    Serial.println("[ERROR] Cannot set a null alert mode");
+    return;
+  }
+
+  mode->modeSetup();
   this->alertMode = mode;
 }
 
@@ -30,58 +41,101 @@ void Controller::printSwitchedMode(AbstractMode* mode) {
   Serial.println("'");
 }
 
+AbstractMode* Controller::findMode(const String& title) {
+  for (int i = 0; i < this->modes.size(); i++) {
+    if (this->modes.get(i)->getTitle() == title) {
+      return this->modes.get(i);
+    }
+  }
+
+  return nullptr;
+}
+
+int16_t Controller::findModeIndex(AbstractMode* mode) {
+  for (int i = 0; i < this->modes.size(); i++) {
+    if (this->modes.get(i) == mode) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+bool Controller::transitionTo(AbstractMode* mode) {
+  if (mode == nullptr) {
+    Serial.println("[ERROR] Cannot transition to a null mode");
+    return false;
+  }
+
+  if (this->currentMode == mode) {
+    return false;
+  }
+
+  AbstractMode* outgoingMode = this->currentMode;
+  if (outgoingMode != nullptr) {
+    outgoingMode->last();
+  }
+
+  this->currentMode = mode;
+  this->previousMode = outgoingMode;
+
+  int16_t modeIndex = this->findModeIndex(mode);
+  if (modeIndex >= 0) {
+    this->currentModeIndex = modeIndex;
+  }
+
+  this->printSwitchedMode(mode);
+  mode->first();
+
+  return true;
+}
+
+void Controller::synchronizeDistance() {
+  if (this->distanceService->consumeLevelChange()) {
+    this->levelUpdatePending = true;
+  }
+
+  if (!this->levelUpdatePending || millis() - this->lastLevelUpdate < LEVEL_UPDATE_INTERVAL) {
+    return;
+  }
+
+  result_t result = this->distanceService->getResult();
+  this->communicationService->sendDistanceUpdate(result.distance, result.level);
+
+  this->lastLevelUpdate = millis();
+  this->levelUpdatePending = false;
+}
+
 void Controller::nextMode() {
-  if (this->currentMode != nullptr) {
-    this->currentMode->last();
+  if (this->modes.size() == 0) {
+    Serial.println("[ERROR] No modes available");
+    return;
   }
 
-  AbstractMode* mode = this->currentMode;
+  uint8_t nextModeIndex = (this->currentModeIndex + 1) % this->modes.size();
+  AbstractMode* mode = this->modes.get(nextModeIndex);
 
-  if (++this->currentModeIndex >= this->modes.size()) {
-    this->currentModeIndex = 0;
-  }
-
-  this->currentMode = this->modes.get(this->currentModeIndex);
-
-  if (this->currentMode == nullptr) {
+  if (mode == nullptr) {
     Serial.println("[ERROR] nextMode - Mode is null");
     return;
   }
 
-  this->previousMode = mode;
-
-  this->printSwitchedMode(this->currentMode);
-
-  this->currentMode->first();
-
-  this->event();
+  if (this->transitionTo(mode)) {
+    this->event();
+  }
 }
 
 void Controller::setMode(String title) {
-  if (this->currentMode != nullptr) {
-    this->currentMode->last();
+  AbstractMode* targetMode = this->findMode(title);
+
+  if (targetMode == nullptr) {
+    Serial.print("[ERROR] Mode '");
+    Serial.print(title);
+    Serial.println("' not found");
+    return;
   }
 
-  AbstractMode* mode = this->currentMode;
-
-  for (int i = 0; i < this->modes.size(); i++) {
-    if (this->modes.get(i)->getTitle() == title) {
-      this->currentMode = this->modes.get(i);
-      this->currentModeIndex = i;
-
-      this->previousMode = mode;
-
-      this->printSwitchedMode(this->currentMode);
-
-      this->currentMode->first();
-
-      return;
-    }
-  }
-
-  Serial.print("[ERROR] Mode '");
-  Serial.print(title);
-  Serial.println("' not found");
+  this->transitionTo(targetMode);
 }
 
 // option functions
@@ -110,6 +164,14 @@ void Controller::customClick() {
   this->event();
 }
 
+String Controller::getCurrentModeTitle() {
+  return this->currentMode == nullptr ? "" : this->currentMode->getTitle();
+}
+
+uint8_t Controller::getCurrentOption() {
+  return this->currentMode == nullptr ? 0 : this->currentMode->getCurrentOption();
+}
+
 // main functions
 void Controller::setup() {
   if (this->alertMode == nullptr) {
@@ -122,7 +184,7 @@ void Controller::setup() {
     return;
   }
 
-  this->communicationService->onNewConnection(std::bind(&Controller::newConnectionCallback, this));
+  this->communicationService->onNewConnection(std::bind(&Controller::newConnectionCallback, this, std::placeholders::_1));
   this->communicationService->onReceived(std::bind(&Controller::newMessageCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   Serial.println("[INFO] Controller initialized");
@@ -139,6 +201,8 @@ void Controller::loop() {
     Serial.println("[ERROR] loop - Mode is null");
     return;
   }
+
+  this->synchronizeDistance();
 
   if (this->distanceService->alert() && !this->alertEnabled()) {
     this->enableAlert(2);
@@ -162,34 +226,18 @@ void Controller::loop() {
 
 // alert functions
 void Controller::enableAlert(uint8_t flashes, CRGB color) {
-  if (this->currentMode == this->alertMode) {
-    return;
-  }
-
-  if (this->currentMode != nullptr) {
-    this->currentMode->last();
-  }
-
   if (this->alertMode == nullptr) {
     Serial.println("[ERROR] Alert mode is null");
     return;
   }
 
-  if (this->currentMode != nullptr) {
-    this->previousMode = this->currentMode;
+  if (this->currentMode == this->alertMode) {
+    return;
   }
-
-  this->currentMode = this->alertMode;
 
   this->alertMode->setColor(color);
   this->alertMode->setFlashes(flashes);
-  this->alertMode->first();
-
-  Serial.print("[INFO] Switched to alert mode '");
-  Serial.print(this->alertMode->getTitle());
-  Serial.print("' by '");
-  Serial.print(this->alertMode->getAuthor());
-  Serial.println("'");
+  this->transitionTo(this->alertMode);
 }
 
 void Controller::enableAlert(uint8_t flashes) {
@@ -201,25 +249,17 @@ void Controller::disableAlert() {
     return;
   }
 
-  if (this->previousMode == nullptr) {
-    if (this->modes.size() > 0) {
-      this->previousMode = this->modes.get(0);
-    } else {
-      Serial.println("[ERROR] No previous mode, cannot disable alert");
+  AbstractMode* targetMode = this->previousMode;
+  if (targetMode == nullptr || targetMode == this->alertMode) {
+    if (this->modes.size() == 0) {
+      Serial.println("[ERROR] No mode available after alert");
       return;
     }
+
+    targetMode = this->modes.get(0);
   }
 
-  this->currentMode = this->previousMode;
-  this->previousMode = this->alertMode;
-
-  this->currentMode->first();
-
-  Serial.print("[INFO] Switched to mode '");
-  Serial.print(this->currentMode->getTitle());
-  Serial.print("' by '");
-  Serial.print(this->currentMode->getAuthor());
-  Serial.println("'");
+  this->transitionTo(targetMode);
 }
 
 bool Controller::alertEnabled() {
@@ -227,29 +267,74 @@ bool Controller::alertEnabled() {
 }
 
 // communication functions
-void Controller::newConnectionCallback() {
-  this->enableAlert(4, CRGB(0, 255, 0));
+void Controller::newConnectionCallback(uint32_t nodeId) {
+  // Exactly one side publishes state, preventing symmetric discovery echoes.
+  if (this->communicationService->getNodeId() < nodeId) {
+    this->event();
+  }
 
-  this->communicationService->sendSync(millis());
+  uint64_t now = millis();
+  if (!this->connectionAlertShown || now - this->lastConnectionAlert >= CONNECTION_ALERT_COOLDOWN) {
+    this->connectionAlertShown = true;
+    this->lastConnectionAlert = now;
+    this->enableAlert(4, CRGB(0, 255, 0));
+  }
 }
 
 void Controller::newMessageCallback(uint32_t from, JsonDocument message, MessageType type) {
   if (type == MessageType::EVENT) {
-    // the EVENT message will be triggered if a change on another node is detected
-
-    // check if the event has the correct format
-    if (!message["title"].is<String>() || !message["version"].is<String>()) {
+    if (!message["eventKind"].is<uint8_t>() || !message["mode"].is<JsonObject>() ||
+        !message["mode"]["title"].is<String>() ||
+        !message["mode"]["version"].is<String>() ||
+        !message["payload"].is<JsonObject>()) {
       Serial.println("[ERROR] Invalid message event format, ignoring message");
       return;
     }
 
-    // check if the mode has changed
-    if (message["title"].as<String>() != this->currentMode->getTitle()) {
-      this->setMode(message["title"].as<String>());
+    uint8_t rawEventKind = message["eventKind"].as<uint8_t>();
+    if (rawEventKind >= static_cast<uint8_t>(ModeEventKind::MAX)) {
+      Serial.println("[ERROR] Invalid mode event kind, ignoring message");
+      return;
     }
 
-    // deserialize the event
-    this->currentMode->deserialize(message);
+    String title = message["mode"]["title"].as<String>();
+    String version = message["mode"]["version"].as<String>();
+    AbstractMode* targetMode = this->findMode(title);
+
+    if (targetMode == nullptr) {
+      Serial.println("[ERROR] Event targets an unknown mode, ignoring message");
+      return;
+    }
+
+    if (targetMode->getVersion() != version) {
+      Serial.println("[ERROR] Event mode version mismatch, ignoring message");
+      return;
+    }
+
+    if (this->currentMode != targetMode) {
+      this->setMode(title);
+    }
+
+    ModeEventKind eventKind = static_cast<ModeEventKind>(rawEventKind);
+    if (eventKind == ModeEventKind::STATE) {
+      JsonDocument state;
+      state["title"] = title;
+      state["version"] = version;
+      state["registry"] = message["payload"];
+      this->currentMode->deserialize(state);
+    } else {
+      if (!message["command"].is<String>()) {
+        Serial.println("[ERROR] Mode command is missing a command name");
+        return;
+      }
+
+      JsonDocument payload;
+      payload.set(message["payload"]);
+
+      if (!this->currentMode->handleRemoteCommand(message["command"].as<String>(), payload)) {
+        Serial.println("[ERROR] Mode command was not handled");
+      }
+    }
   } else if (type == MessageType::SYNC) {
     /* The SYNC message will be triggered if a new node is detected:
      * - 'timestamp' holds the current value from the sender GlowNode
@@ -279,10 +364,11 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
     // set the number of wipes
     this->distanceService->setNumberOfWipes(message["numberOfWipes"].as<uint16_t>());
   } else if (type == MessageType::LEVEL) {
-    // Live dimming from remote node - simulate sensor input
+    // Live dimming from a remote node is separate from local sensor state.
 
     // Check format
-    if (!message["distance"].is<uint16_t>() || !message["level"].is<uint16_t>()) {
+    if (!message["distance"].is<uint16_t>() || !message["level"].is<uint16_t>() ||
+        !message["active"].is<bool>() || !message["active"].as<bool>()) {
       Serial.println("[ERROR] Invalid message level format, ignoring message");
       return;
     }
@@ -290,10 +376,12 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
     uint16_t distance = message["distance"].as<uint16_t>();
     uint16_t level = message["level"].as<uint16_t>();
 
-    // Inject into DistanceService (sets flag to prevent re-broadcast)
-    this->distanceService->setRemoteResult(distance, level);
+    // A locally operated sensor owns the output until the hand is removed.
+    if (this->distanceService->isObjectPresent()) {
+      return;
+    }
 
-    // Apply IMMEDIATELY to LEDs (bypasses isObjectPresent checks)
+    // Apply immediately to LEDs without feeding the value back into the sensor.
     if (this->currentMode != nullptr) {
       this->currentMode->applyRemoteUpdate(distance, level);
     }
@@ -303,5 +391,5 @@ void Controller::newMessageCallback(uint32_t from, JsonDocument message, Message
 }
 
 void Controller::event() {
-  this->communicationService->sendEvent(this->currentMode->serialize());
+  this->communicationService->sendStateEvent(this->currentMode->serialize());
 }

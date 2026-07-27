@@ -12,7 +12,8 @@ class LightService {
     CRGB currentLeds[LED_NUM_LEDS];
 
     uint16_t lightUpdateSteps = LED_UPDATE_STEPS;
-    uint8_t brightness = LED_DEFAULT_BRIGHTNESS;
+    uint8_t hardwareBrightness = LED_MAX_BRIGHTNESS;
+    bool outputDirty = false;
 
   public:
     LightService();
@@ -20,10 +21,8 @@ class LightService {
     void setup();
     void loop();
 
-    void show();
-
-    void setBrightness(uint8_t brightness);
-    uint8_t getBrightness();
+    void setHardwareBrightness(uint8_t brightness);
+    uint8_t getHardwareBrightness();
 
     void setLightUpdateSteps(uint16_t steps);
 
@@ -33,11 +32,9 @@ class LightService {
 
     void setLed(uint8_t index, uint8_t red, uint8_t green, uint8_t blue);
     void setLed(uint8_t index, CRGB color);
-    void setLed(CRGB color);
-
-    void updateLed(uint8_t index, uint8_t red, uint8_t green, uint8_t blue);
-    void updateLed(uint8_t index, CRGB color);
-    void updateLed(CRGB color);
+    void setLedImmediate(uint8_t index, uint8_t red, uint8_t green, uint8_t blue);
+    void setLedImmediate(uint8_t index, CRGB color);
+    void fillImmediate(CRGB color);
 };
 
 #endif

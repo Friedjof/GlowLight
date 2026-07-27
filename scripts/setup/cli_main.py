@@ -49,11 +49,11 @@ class GlowLightCLI:
         print(f"{'='*80}{Colors.RESET}\n")
         
         print(f"{Colors.BLUE}📋 This tool will help you:{Colors.RESET}")
-        print(f"   • Configure your mesh network and device settings")
+        print(f"   • Configure ESP-NOW synchronization and device settings")
         print(f"   • Install and manage PlatformIO dependencies")
         print(f"   • Build and flash firmware to ESP32-C3 devices")
         print(f"   • Monitor device output and debug issues")
-        print(f"   • Manage multiple devices in your mesh network")
+        print(f"   • Manage multiple synchronized devices")
         
         input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.RESET}")
         ASCIIArt.clear_screen()

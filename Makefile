@@ -23,12 +23,18 @@ else
   MONITOR_FLAG :=
 endif
 
-.PHONY: all build flash monitor run clean list
+.PHONY: all build build-all flash monitor run clean list test-integration
 
 all: build
 
 build:
 	$(PLATFORMIO) run --environment $(BOARD)
+
+build-all:
+	$(PLATFORMIO) run --environment esp32c3-all-modes
+
+test-integration:
+	python3 test/hil/two_lamp_sync.py
 
 # make flash        -> ohne --upload-port (auto-detect)
 # make flash 1      -> Upload auf /dev/ttyACM1

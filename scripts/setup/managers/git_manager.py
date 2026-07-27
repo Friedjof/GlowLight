@@ -263,7 +263,10 @@ class ProjectStructureValidator:
                 "DISTANCE_SENSOR_SDA",
                 "DISTANCE_SENSOR_SCL",
                 "MESH_ON",
-                "MESH_PREFIX"
+                "ESPNOW_CHANNEL",
+                "GLOW_NODE_TIMEOUT",
+                "HARTBEAT_INTERVAL",
+                "LEVEL_UPDATE_INTERVAL"
             ]
             
             for define in required_defines:

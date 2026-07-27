@@ -118,17 +118,10 @@ void Controller::showAlert(AlertType type) {
 }
 ```
 
-## Mesh-Synchronisation
+## ESP-NOW-Synchronisation
 
-Alerts können über das Mesh-Netzwerk synchronisiert werden:
-```cpp
-// Alert an alle Lampen senden
-communicationService->sendEvent("alert", {
-    "color": "#FF0000",
-    "flashes": 3,
-    "type": "error"
-});
-```
+Alerts sind lokale, kurzlebige Controller-Zustände und werden derzeit nicht als
+Mode-Commands synchronisiert.
 
 ## Anpassung
 

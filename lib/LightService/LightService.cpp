@@ -6,12 +6,16 @@ LightService::LightService() {
 }
 
 void LightService::setup() {
-  this->setBrightness(LED_MAX_BRIGHTNESS);
+  this->setHardwareBrightness(LED_DEFAULT_BRIGHTNESS);
 }
 
 void LightService::loop() {
+  bool updated = this->outputDirty;
+
   for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
     if (this->currentLeds[i] != this->leds[i]) {
+      updated = true;
+
       if (this->currentLeds[i].r < this->leds[i].r) {
         if (this->currentLeds[i].r + this->lightUpdateSteps < this->leds[i].r) {
           this->currentLeds[i].r += this->lightUpdateSteps;
@@ -54,24 +58,27 @@ void LightService::loop() {
         }
       }
 
-      FastLED.show();
     }
+  }
+
+  if (updated) {
+    FastLED.show();
+    this->outputDirty = false;
   }
 }
 
-void LightService::setBrightness(uint8_t brightness) {
-  if (this->brightness == brightness) {
+void LightService::setHardwareBrightness(uint8_t brightness) {
+  if (this->hardwareBrightness == brightness) {
     return;
   }
 
   FastLED.setBrightness(brightness);
-  FastLED.show();
-
-  this->brightness = brightness;
+  this->hardwareBrightness = brightness;
+  this->outputDirty = true;
 }
 
-uint8_t LightService::getBrightness() {
-  return this->brightness;
+uint8_t LightService::getHardwareBrightness() {
+  return this->hardwareBrightness;
 }
 
 void LightService::setLightUpdateSteps(uint16_t steps) {
@@ -104,36 +111,21 @@ void LightService::setLed(uint8_t index, uint8_t red, uint8_t green, uint8_t blu
   this->setLed(index, CRGB(red, green, blue));
 }
 
-void LightService::setLed(CRGB color) {
-  for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
-    this->setLed(i, color);
-  }
-}
-
-void LightService::updateLed(uint8_t index, CRGB color) {
+void LightService::setLedImmediate(uint8_t index, CRGB color) {
   this->leds[index % LED_NUM_LEDS] = color;
   this->currentLeds[index % LED_NUM_LEDS] = color;
-
-  FastLED.show();
+  this->outputDirty = true;
 }
 
-void LightService::updateLed(uint8_t index, uint8_t red, uint8_t green, uint8_t blue) {
-  this->updateLed(index, CRGB(red, green, blue));
+void LightService::setLedImmediate(uint8_t index, uint8_t red, uint8_t green, uint8_t blue) {
+  this->setLedImmediate(index, CRGB(red, green, blue));
 }
 
-void LightService::updateLed(CRGB color) {
+void LightService::fillImmediate(CRGB color) {
   for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
     this->leds[i] = color;
     this->currentLeds[i] = color;
   }
 
-  FastLED.show();
-}
-
-void LightService::show() {
-  for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
-    currentLeds[i] = leds[i];
-  }
-
-  FastLED.show();
+  this->outputDirty = true;
 }

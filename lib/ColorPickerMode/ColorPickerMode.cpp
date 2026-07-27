@@ -10,19 +10,17 @@ ColorPickerMode::ColorPickerMode(LightService* lightService, DistanceService* di
 }
 
 void ColorPickerMode::setup() {
-  this->lightService->setBrightness(LED_MAX_BRIGHTNESS);
-
   this->registry.init("hue", RegistryType::INT, 0, 0, 255);
   this->registry.init("saturation", RegistryType::INT, 255, 0, 255);
   this->registry.init("fixed", RegistryType::BOOL, false);
 
   this->addOption("Hue", std::function<void()>([this](){ this->newHue(); }));
   this->addOption("Saturation", std::function<void()>([this](){ this->newSaturation(); }));
-  this->addOption("Brightness", std::function<void()>([this](){ this->setBrightness(); }));
+  this->addOption("Brightness", std::function<void()>([this](){ this->updateBrightnessFromSensor(); }));
 }
 
 void ColorPickerMode::customFirst() {
-  this->lightService->updateLed(CHSV(this->registry.getInt("hue"), this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
+  this->lightService->fillImmediate(CHSV(this->registry.getInt("hue"), this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
 }
 
 void ColorPickerMode::customLoop() {
@@ -30,7 +28,7 @@ void ColorPickerMode::customLoop() {
     return;
   }
 
-  this->lightService->updateLed(CHSV(this->registry.getInt("hue"), this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
+  this->lightService->fillImmediate(CHSV(this->registry.getInt("hue"), this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
 }
 
 void ColorPickerMode::last() {
@@ -95,7 +93,7 @@ void ColorPickerMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
     this->registry.setInt("hue", hue);
 
     // Update LED immediately
-    this->lightService->updateLed(CHSV(hue, this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
+    this->lightService->fillImmediate(CHSV(hue, this->registry.getInt("saturation"), LED_MAX_BRIGHTNESS));
 
   } else if (currentOption == 1) {
     // Option 1: Saturation
@@ -104,13 +102,12 @@ void ColorPickerMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
     this->registry.setInt("saturation", saturation);
 
     // Update LED immediately
-    this->lightService->updateLed(CHSV(this->registry.getInt("hue"), saturation, LED_MAX_BRIGHTNESS));
+    this->lightService->fillImmediate(CHSV(this->registry.getInt("hue"), saturation, LED_MAX_BRIGHTNESS));
 
   } else if (currentOption == 2) {
     // Option 2: Brightness
     // Use default implementation (convert level to brightness)
-    uint16_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
-    this->lightService->setBrightness(brightness);
-    this->brightness = brightness;
+    uint8_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
+    this->setDesiredBrightness(brightness);
   }
 }

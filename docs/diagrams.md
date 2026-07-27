@@ -44,16 +44,18 @@ classDiagram
 
     %% Services
     class LightService {
-        -CRGB leds[NUM_LEDS]
-        -AbstractMode* currentMode
-        -uint8_t brightness
-        -CRGB currentColor
+        -CRGB leds[LED_NUM_LEDS]
+        -CRGB currentLeds[LED_NUM_LEDS]
+        -uint8_t hardwareBrightness
+        -uint16_t lightUpdateSteps
+        -bool outputDirty
         +setup()
-        +setMode(AbstractMode*)
-        +update()
-        +setBrightness(uint8_t)
-        +setColor(CRGB)
-        +turnOff()
+        +loop()
+        +setHardwareBrightness(uint8_t)
+        +fill(CRGB)
+        +setLed(uint8_t, CRGB)
+        +fillImmediate(CRGB)
+        +setLedImmediate(uint8_t, CRGB)
     }
 
     class CommunicationService {
@@ -90,11 +92,12 @@ classDiagram
     %% Abstract Mode Interface
     class AbstractMode {
         <<abstract>>
-        #unsigned long lastUpdate
-        #unsigned long updateInterval
-        +setup()* 
-        +update(CRGB*, int)* 
-        +reset()* 
+        #uint8_t desiredBrightness
+        +updateBrightnessFromSensor()
+        +setDesiredBrightness(uint8_t)
+        +getDesiredBrightness()
+        +setup()*
+        +customLoop()*
     }
 
     %% Concrete Mode Implementations

@@ -59,11 +59,11 @@ void RandomGlowMode::setup() {
   this->startNewPhase();
 
   // Simple options using inherited brightness functionality
-  this->addOption("Brightness", [this](){ this->setBrightness(); });
+  this->addOption("Brightness", [this](){ this->updateBrightnessFromSensor(); });
   this->addOption("Speed", [this](){ this->adjustSpeed(); });
 
   Serial.println("[RandomGlowMode] Setup complete - " + SPEED_NAMES[this->currentSpeedMode] + 
-                 " | Brightness: " + String(this->brightness));
+                 " | Brightness: " + String(this->getDesiredBrightness()));
 }
 
 void RandomGlowMode::customFirst() {
@@ -132,6 +132,35 @@ void RandomGlowMode::customClick() {
                  String(this->isDistanceLocked ? "LOCKED" : "UNLOCKED"));
 }
 
+bool RandomGlowMode::handleRemoteCommand(const String& command, const JsonDocument& payload) {
+  if (command != "setting_changed" || !payload["key"].is<String>() ||
+      payload["value"].isNull()) {
+    return false;
+  }
+
+  String key = payload["key"].as<String>();
+
+  if (key == "speed_mode" && payload["value"].is<int>()) {
+    int speed = payload["value"].as<int>();
+    if (speed < 0 || speed > 3) {
+      return false;
+    }
+
+    this->currentSpeedMode = speed;
+    this->registry.setInt("speed_mode", this->currentSpeedMode);
+    this->startNewPhase();
+    return true;
+  }
+
+  if (key == "distance_locked" && payload["value"].is<bool>()) {
+    this->isDistanceLocked = payload["value"].as<bool>();
+    this->registry.setBool("distance_locked", this->isDistanceLocked);
+    return true;
+  }
+
+  return false;
+}
+
 bool RandomGlowMode::newSpeed() {
   this->currentSpeedMode = (this->currentSpeedMode + 1) % 4;
   this->registry.setInt("speed_mode", this->currentSpeedMode);
@@ -185,8 +214,7 @@ void RandomGlowMode::updateLighting() {
     targetColor = blend(currentColor, nextColor, (uint8_t)(progress * 255));
   }
   
-  // Apply brightness and display
-  targetColor.nscale8(this->brightness);
+  // Global brightness is applied once by LightService/FastLED.
   this->lightService->fill(targetColor);
 }
 
@@ -245,21 +273,17 @@ uint32_t RandomGlowMode::getRandomDuration(uint32_t baseTime) {
 }
 
 void RandomGlowMode::broadcastSettingChange(String key, int value) {
-  JsonDocument message;
-  message["type"] = "random_glow_setting";
-  message["key"] = key;
-  message["value"] = value;
-  message["nodeId"] = this->communicationService->getNodeId();
+  JsonDocument payload;
+  payload["key"] = key;
+  payload["value"] = value;
   
-  this->communicationService->sendEvent(message);
+  this->sendCommand("setting_changed", payload);
 }
 
 void RandomGlowMode::broadcastSettingChange(String key, bool value) {
-  JsonDocument message;
-  message["type"] = "random_glow_setting";
-  message["key"] = key;
-  message["value"] = value;
-  message["nodeId"] = this->communicationService->getNodeId();
+  JsonDocument payload;
+  payload["key"] = key;
+  payload["value"] = value;
   
-  this->communicationService->sendEvent(message);
+  this->sendCommand("setting_changed", payload);
 }

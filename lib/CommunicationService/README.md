@@ -52,10 +52,10 @@ Instead of managing individual peers (which is limited to 20 in ESP-NOW), this i
 
 ## Message Types
 
-The service handles 4 types of messages:
+The service handles 5 types of messages:
 
 ### 1. EVENT (Type 0)
-Broadcasts mode and state changes to all lamps.
+Broadcasts mode state or mode-specific commands to all lamps using one envelope.
 
 **Trigger**: User changes mode, brightness, color, or options
 
@@ -64,9 +64,12 @@ Broadcasts mode and state changes to all lamps.
 {
   "type": 0,
   "message": {
-    "title": "Rainbow Mode",
-    "version": "3.2.1",
-    "registry": {
+    "eventKind": 0,
+    "mode": {
+      "title": "Rainbow Mode",
+      "version": "3.2.1"
+    },
+    "payload": {
       "speed": 4,
       "saturation": 255
     }
@@ -76,8 +79,11 @@ Broadcasts mode and state changes to all lamps.
 
 **Flow**:
 ```
-User changes mode → Controller.event() → sendEvent() → Broadcast → All lamps update
+User changes mode → Controller.event() → sendStateEvent() → Broadcast → All lamps update
 ```
+
+Mode commands use `eventKind: 1` and add a `command` field. The controller validates
+the target mode and version before forwarding the payload to that mode.
 
 ### 2. SYNC (Type 1)
 Synchronizes state when a new lamp joins the network.
@@ -152,11 +158,11 @@ struct ESPNowMessage {
   uint8_t senderMac[6];      // 6 bytes - Sender's MAC address
   uint32_t senderNodeId;     // 4 bytes - Derived node ID
   uint16_t payloadLength;    // 2 bytes - JSON payload length
-  char payload[1458];        // 1458 bytes - JSON data (v2.0: 1470 - 12)
+  char payload[238];         // ESP_NOW_MAX_DATA_LEN minus 12-byte header
 };
 ```
 
-**Total**: 1470 bytes (ESP-NOW v2.0 maximum)
+**Total**: 250 bytes (ESP-NOW limit in the current Arduino-ESP32 framework)
 
 ### Node ID Generation
 
@@ -191,7 +197,9 @@ void setup();
 void loop();
 
 // Communication
-void sendEvent(JsonDocument event);
+void sendStateEvent(const JsonDocument& state);
+void sendModeCommand(const String& title, const String& version,
+                     const String& command, const JsonDocument& payload);
 void sendSync(uint64_t timestamp);
 void sendWipe(uint16_t numberOfWipes);
 
@@ -201,7 +209,7 @@ uint32_t getNodeId();
 uint32_t getMeshTime();
 
 // Callbacks
-bool onNewConnection(std::function<void()> callback);
+bool onNewConnection(std::function<void(uint32_t)> callback);
 bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback);
 ```
 
@@ -223,7 +231,6 @@ bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callbac
 // Communication
 #define MESH_ON true                // Enable/disable communication
 #define ESPNOW_CHANNEL 1            // WiFi channel (1-13)
-#define ESPNOW_MAX_PAYLOAD 1458     // Max JSON payload size
 
 // Timing
 #define HARTBEAT_INTERVAL 10000     // Heartbeat interval (ms)
@@ -233,7 +240,7 @@ bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callbac
 ### Important Notes
 
 1. **WiFi Channel**: All lamps must be on the same channel
-2. **Payload Size**: Maximum 1458 bytes (1470 - 12 byte header)
+2. **Payload Size**: Maximum 238 bytes (`ESP_NOW_MAX_DATA_LEN` minus 12-byte header)
 3. **Timeout**: Inactive nodes are removed after 30 minutes
 4. **Discovery**: New lamps are discovered within 10 seconds (heartbeat interval)
 
@@ -300,17 +307,18 @@ void CommunicationService::onDataRecv(const uint8_t* mac,
   // 3. Validate MAC address
   if (memcmp(mac, msg->senderMac, 6) != 0) return;
 
-  // 4. Validate payload length
-  if (msg->payloadLength > ESPNOW_MAX_PAYLOAD) return;
+  // 4. Validate node ID and payload length
+  if (msg->senderNodeId != macToNodeId(mac)) return;
+  if (msg->payloadLength > MAX_PAYLOAD_SIZE) return;
 
-  // 5. Extract and null-terminate payload
-  char payload[ESPNOW_MAX_PAYLOAD + 1];
-  memcpy(payload, msg->payload, msg->payloadLength);
-  payload[msg->payloadLength] = '\0';
+  // 5. Copy into a queue item owned by CommunicationService
+  PendingMessage pending;
+  pending.senderNodeId = msg->senderNodeId;
+  memcpy(pending.payload, msg->payload, msg->payloadLength);
+  pending.payload[msg->payloadLength] = '\0';
 
-  // 6. Forward to receivedCallback
-  String msgStr(payload);
-  instance->receivedCallback(msg->senderNodeId, msgStr);
+  // 6. JSON and controller callbacks run later in loop(), not in WiFi's task
+  xQueueSend(instance->receiveQueue, &pending, 0);
 }
 ```
 
@@ -420,7 +428,8 @@ if (esp_now_init() != ESP_OK) {
 
 - **Size check**: `if (len < 12) return;`
 - **MAC validation**: `if (memcmp(mac, msg->senderMac, 6) != 0) return;`
-- **Payload size**: `if (msg->payloadLength > ESPNOW_MAX_PAYLOAD) return;`
+- **Payload size**: `if (msg->payloadLength > MAX_PAYLOAD_SIZE) return;`
+- **Node identity**: the transmitted node ID must match the radio sender MAC
 - **Self-filtering**: `if (from == this->localNodeId) return;`
 
 ### Send Errors
@@ -439,7 +448,7 @@ if (result != ESP_OK) {
 
 - **Static overhead**: ~5KB (vs ~50KB for PainlessMesh)
 - **Per node**: 12 bytes (id + lastSeen)
-- **Message buffer**: 1470 bytes (allocated on stack during send)
+- **Message buffers**: 250-byte queued RX/TX records with persistent in-flight TX storage
 
 ### Timing
 
@@ -451,7 +460,7 @@ if (result != ESP_OK) {
 
 - **Heartbeat**: Every 10 seconds per lamp
 - **EVENT**: On-demand (user actions)
-- **SYNC**: On connection (once per new lamp)
+- **EVENT**: Once on connection, sent only by the lower node ID
 - **WIPE**: On gesture detection (rare)
 
 **Typical load**: ~6 messages/minute per lamp (heartbeat only)
@@ -467,7 +476,7 @@ if (result != ESP_OK) {
 
 ### Messages not synchronizing
 
-1. **Check payload size**: Max 1458 bytes (truncation may occur)
+1. **Check payload size**: Max 238 bytes; oversized messages are rejected and logged
 2. **Check JSON format**: Must be valid JSON
 3. **Check message type**: Verify MessageType enum matches
 4. **Check callback**: Ensure `onReceived()` is registered
@@ -480,8 +489,6 @@ if (result != ESP_OK) {
 
 ## Migration from PainlessMesh
 
-The migration maintains 100% API compatibility:
-
 ### What Changed
 
 - ✅ Internal implementation (PainlessMesh → ESP-NOW)
@@ -491,21 +498,17 @@ The migration maintains 100% API compatibility:
 
 ### What Stayed the Same
 
-- ✅ Public API methods
 - ✅ Callback signatures
 - ✅ Message format (JSON)
-- ✅ Message types (EVENT, SYNC, HEARTBEAT, WIPE)
+- ✅ Message types (EVENT, SYNC, HEARTBEAT, WIPE, LEVEL)
 - ✅ Node structure (GlowNode)
 
 ### Controller Integration
 
-**No changes required** in Controller or Mode classes:
-
 ```cpp
-// Works identically with both implementations
 communicationService.setup();
 communicationService.loop();
-communicationService.sendEvent(mode->serialize());
+communicationService.sendStateEvent(mode->serialize());
 communicationService.onNewConnection(callback);
 communicationService.onReceived(callback);
 ```

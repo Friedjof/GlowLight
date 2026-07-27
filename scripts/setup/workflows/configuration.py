@@ -134,7 +134,7 @@ class ConfigurationWorkflow:
         ASCIIArt.show_separator("Create New Configuration")
         
         print("\n🔧 This will create a complete new configuration for your GlowLight.")
-        print("   You'll configure mesh networking and GPIO pins.")
+        print("   You'll configure ESP-NOW synchronization and GPIO pins.")
         
         if not self.config_manager.template_exists():
             ASCIIArt.show_error("Configuration template not found!")
@@ -145,12 +145,12 @@ class ConfigurationWorkflow:
         if not self.config_manager.create_from_template():
             return
             
-        # Configure mesh networking
-        print("\n" + "🌐" + " "*20 + "STEP 1: Mesh Configuration" + " "*20)
-        mesh_config = self.config_manager.configure_mesh()
+        # Configure ESP-NOW synchronization
+        print("\n" + "🌐" + " "*20 + "STEP 1: ESP-NOW Configuration" + " "*17)
+        communication_config = self.config_manager.configure_esp_now()
         
-        if mesh_config is None:
-            ASCIIArt.show_error("Mesh configuration cancelled")
+        if communication_config is None:
+            ASCIIArt.show_error("ESP-NOW configuration cancelled")
             return
             
         # Configure GPIO pins
@@ -163,7 +163,7 @@ class ConfigurationWorkflow:
             
         # Apply configuration
         print("\n" + "💾" + " "*20 + "STEP 3: Applying Configuration" + " "*19)
-        if self.config_manager.apply_configuration(mesh_config, pin_config):
+        if self.config_manager.apply_configuration(communication_config, pin_config):
             ASCIIArt.show_success("🎉 Configuration created successfully!")
             print("\n📋 Your GlowLight is now configured and ready to build!")
         else:
@@ -185,7 +185,7 @@ class ConfigurationWorkflow:
             print("\n" + "="*40)
             print("🔧 MODIFICATION MENU")
             print("="*40)
-            print("[1]  Modify Mesh Settings")
+            print("[1]  Modify ESP-NOW Settings")
             print("[2]  Modify GPIO Pins")
             print("[3]  Complete Reconfiguration")
             print("[4]  Return to Configuration Menu")
@@ -194,9 +194,9 @@ class ConfigurationWorkflow:
             choice = input("\n🎯 Select option (1-4): ").strip()
             
             if choice == '1':
-                mesh_config = self.config_manager.configure_mesh()
-                if mesh_config:
-                    self.config_manager.apply_configuration(mesh_config, {})
+                communication_config = self.config_manager.configure_esp_now()
+                if communication_config:
+                    self.config_manager.apply_configuration(communication_config, {})
                     
             elif choice == '2':
                 pin_config = self.config_manager.configure_pins()
@@ -263,8 +263,8 @@ class ConfigurationWorkflow:
             ('BUTTON_PIN', 'Button Pin'),
             ('DISTANCE_SENSOR_SDA', 'Distance Sensor SDA'),
             ('DISTANCE_SENSOR_SCL', 'Distance Sensor SCL'),
-            ('MESH_ON', 'Mesh Networking'),
-            ('MESH_PREFIX', 'Mesh Network Name'),
+            ('MESH_ON', 'ESP-NOW Synchronization'),
+            ('ESPNOW_CHANNEL', 'ESP-NOW WiFi Channel'),
         ]
         
         for define_name, display_name in important_settings:

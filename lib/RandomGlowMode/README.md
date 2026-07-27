@@ -76,8 +76,8 @@ this->registry.init("next_color", RegistryType::INT, 1, 0, 9);    // Next color 
 
 ### Inherited Functionality (AbstractMode)
 ```cpp
-this->brightness          // Inherited brightness variable
-this->setBrightness()     // Inherited brightness control
+this->getDesiredBrightness()       // Persisted mode brightness
+this->updateBrightnessFromSensor() // Inherited sensor control
 this->addOption()         // Inherited option registration
 ```
 

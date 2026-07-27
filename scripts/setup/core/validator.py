@@ -80,28 +80,29 @@ class ConfigValidator:
         ASCIIArt.show_success("Pin configuration is valid!")
         return True
         
-    def validate_mesh_config(self, mesh_config):
-        """Validate mesh network configuration.
+    def validate_communication_config(self, communication_config):
+        """Validate ESP-NOW communication configuration.
         
         Args:
-            mesh_config: Dictionary of mesh settings
+            communication_config: Dictionary of communication settings
             
         Returns:
             bool: True if valid
         """
-        # Check mesh prefix
-        prefix = mesh_config.get('MESH_PREFIX', '').strip('"')
-        if len(prefix) < 1 or len(prefix) > 32:
-            ASCIIArt.show_error("Mesh prefix must be 1-32 characters")
+        enabled = communication_config.get('MESH_ON')
+        if not isinstance(enabled, bool):
+            ASCIIArt.show_error("ESP-NOW synchronization must be enabled or disabled")
             return False
-            
-        # Check mesh password
-        password = mesh_config.get('MESH_PASSWORD', '').strip('"')
-        if len(password) < 8:
-            ASCIIArt.show_error("Mesh password must be at least 8 characters")
+
+        if not enabled:
+            return True
+
+        channel = communication_config.get('ESPNOW_CHANNEL')
+        if not isinstance(channel, int) or not 1 <= channel <= 13:
+            ASCIIArt.show_error("ESP-NOW channel must be between 1 and 13")
             return False
-            
-        ASCIIArt.show_success("Mesh configuration is valid!")
+
+        ASCIIArt.show_success("ESP-NOW configuration is valid!")
         return True
         
     def validate_port_path(self, port_path):

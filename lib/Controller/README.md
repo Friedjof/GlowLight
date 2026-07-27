@@ -10,7 +10,7 @@ Der Controller ist das Herzstück des GlowLight-Systems und orchestriert alle Ko
 - **Service-Koordination**: Integration von LightService, DistanceService und CommunicationService
 - **Alert-System**: Visuelle Benachrichtigungen und Statusanzeigen
 - **Event-Handling**: Verarbeitung von Button-Klicks und Sensor-Events
-- **State-Management**: Zustandserhaltung und Modus-Wiederherstellung
+- **State-Management**: Einheitlicher Lifecycle für Aktivierung und Wiederherstellung
 
 ## System-Architektur
 
@@ -61,9 +61,9 @@ Verbindung:       🔵 🔵 🔵 (3x Blau)
 ## Event-Verarbeitung
 
 ### Button-Events
-- **Einfach-Klick**: Nächster Modus
+- **Einfach-Klick**: Nächste Option
 - **Doppel-Klick**: Modus-spezifische Aktion
-- **Langer Druck**: System-Optionen (optional)
+- **Langer Druck**: Nächster Modus
 
 ### Sensor-Events
 - **Proximity-Änderung**: Helligkeit anpassen
@@ -91,7 +91,10 @@ Controller-Zustand:
 - `addMode()`: Neuen Modus hinzufügen
 - `nextMode()`: Zum nächsten Modus wechseln
 - `setMode()`: Direkter Modus-Wechsel
-- `getCurrentMode()`: Aktuellen Modus abrufen
+
+Alle Wechsel laufen intern über `transitionTo()`. Diese Methode ruft den alten
+Modus mit `last()` ab, pflegt Index und vorherigen Modus und aktiviert das Ziel
+anschließend genau einmal mit `first()`.
 
 ### System-Steuerung
 - `setup()`: Controller-Initialisierung
@@ -102,16 +105,12 @@ Controller-Zustand:
 ## Verwendung
 
 ```cpp
-Controller controller;
-
-// Services hinzufügen
-controller.addService(&lightService);
-controller.addService(&distanceService);
-controller.addService(&commService);
+Controller controller(&distanceService, &communicationService);
 
 // Modi registrieren
-controller.addMode(new StaticMode(...));
-controller.addMode(new RainbowMode(...));
+controller.addMode(&staticMode);
+controller.addMode(&rainbowMode);
+controller.setAlertMode(&alertMode);
 
 // Initialisierung
 controller.setup();

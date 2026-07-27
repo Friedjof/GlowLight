@@ -7,18 +7,8 @@
 #include "LightService.h"
 #include "DistanceService.h"
 #include "CommunicationService.h"
-
-// Modes
-#include "Alert.h"
-#include "StaticMode.h"
-#include "ColorPickerMode.h"
-#include "RainbowMode.h"
-#include "RandomGlowMode.h"
-//#include "BeaconMode.h"
-//#include "CandleMode.h"
-//#include "SunsetMode.h"
-//#include "StrobeMode.h"
-//#include "MiniGame.h"
+#include "IntegrationConsole.h"
+#include "ModeRegistration.h"
 
 // Config
 #include "GlowConfig.h"
@@ -28,22 +18,10 @@ Button2 button;
 
 LightService lightService;
 CommunicationService communicationService;
-DistanceService distanceService(&communicationService);
+DistanceService distanceService;
 
 // Controller
 Controller controller(&distanceService, &communicationService);
-
-// Light modes
-Alert alertMode(&lightService, &distanceService, &communicationService);
-StaticMode staticMode(&lightService, &distanceService, &communicationService);
-ColorPickerMode colorPickerMode(&lightService, &distanceService, &communicationService);
-RainbowMode rainbowMode(&lightService, &distanceService, &communicationService);
-RandomGlowMode randomGlowMode(&lightService, &distanceService, &communicationService);
-//BeaconMode beaconMode(&lightService, &distanceService, &communicationService);
-//CandleMode candleMode(&lightService, &distanceService, &communicationService);
-//SunsetMode sunsetMode(&lightService, &distanceService, &communicationService);
-//StrobeMode strobeMode(&lightService, &distanceService, &communicationService);
-//MiniGame miniGame(&lightService, &distanceService, &communicationService);
 
 /*
  * This is the main setup function; it is called only once during startup.
@@ -66,19 +44,7 @@ void setup() {
   // Set debounce time (this is the time the button needs to be stable before a press is registered)
   button.setLongClickTime(500);
 
-  // The modes need to be added to the controller and the order will be the order of the modes
-  controller.addMode(&staticMode);
-  controller.addMode(&colorPickerMode);
-  controller.addMode(&rainbowMode);
-  controller.addMode(&randomGlowMode);
-  //controller.addMode(&beaconMode);
-  //controller.addMode(&candleMode);
-  //controller.addMode(&sunsetMode);
-  //controller.addMode(&strobeMode);
-  //controller.addMode(&miniGame);
-
-  // Set alert mode
-  controller.setAlertMode(&alertMode);
+  registerModes(controller, lightService, distanceService, communicationService);
 
   // Setup controller
   controller.setup();
@@ -105,9 +71,10 @@ void setup() {
  */
 void loop() {
   // The services and controller need to be looped
+  integrationConsoleLoop(controller);
   button.loop();
+  distanceService.loop();
   controller.loop();
   lightService.loop();
-  distanceService.loop();
   communicationService.loop();
 }

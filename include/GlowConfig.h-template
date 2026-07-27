@@ -13,13 +13,11 @@
 #define BUTTON_PIN 4
 
 // CommunicationService
-// TODO: change MESH_PREFIX and MESH_PASSWORD
 #define MESH_ON true
-#define MESH_PREFIX "GlowMesh"
-#define MESH_PASSWORD "GlowMesh"
-#define MESH_PORT 5555
+#define ESPNOW_CHANNEL 1           // WiFi channel (1-13), configurable
 #define GLOW_NODE_TIMEOUT 30*60*1000 // 30 minutes
 #define HARTBEAT_INTERVAL 10000
+#define LEVEL_UPDATE_INTERVAL 100  // ms - max 10 updates/sec for live dimming
 
 // DistanceService
 #define DISTANCE_SENSOR_SDA 6

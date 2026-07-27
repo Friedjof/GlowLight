@@ -54,7 +54,7 @@ void StaticMode::customFirst() {
 
 void StaticMode::customLoop() {
   if (!this->registry.getBool("fixed")) {
-    this->setBrightness();
+    this->updateBrightnessFromSensor();
   }
 }
 

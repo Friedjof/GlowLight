@@ -45,6 +45,7 @@ Level-Mapping:    100% ────→  0%
 - `filter()`: Glättungsfilter für stabile Werte
 - `distance2level()`: Konvertierung Abstand zu Level
 - `getResult()`: Vollständiges Messergebnis mit Status
+- `consumeLevelChange()`: Meldet eine neue lokale Level-Änderung genau einmal
 
 ## Filterung
 
@@ -94,7 +95,14 @@ distanceService.loop();
 uint16_t distance = distanceService.getDistance();
 uint16_t level = distanceService.getLevel();
 result_t result = distanceService.getResult();
+
+if (distanceService.consumeLevelChange()) {
+    // Der Controller entscheidet, ob und wie der Wert synchronisiert wird.
+}
 ```
+
+Der Service kennt weder ESP-NOW noch Remote-Zustände. Netzwerk-Synchronisierung
+gehört dem Controller, damit Sensormessung und Transport unabhängig bleiben.
 
 ## Anwendungen
 

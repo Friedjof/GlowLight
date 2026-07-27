@@ -50,11 +50,8 @@ void SunsetMode::setup() {
   this->sunsetActive = this->registry.getBool("sunset_active");
   this->currentPhase = GOLDEN_HOUR;
 
-  // Set brightness to maximum initially
-  this->lightService->setBrightness(LED_MAX_BRIGHTNESS);
-
   // Add mode options
-  this->addOption("Brightness", std::function<void()>([this](){ this->setBrightness(); }));
+  this->addOption("Brightness", std::function<void()>([this](){ this->updateBrightnessFromSensor(); }));
   this->addOption("Duration", std::function<void()>([this](){ this->newDuration(); }));
 }
 
@@ -101,10 +98,10 @@ void SunsetMode::customLoop() {
 
   // Calculate and set colors
   CRGB sunsetColor = this->calculateSunsetColor(progress);
-  uint8_t brightness = this->calculateBrightness(progress);
+  uint8_t effectBrightness = this->calculateBrightness(progress);
   
-  // Apply brightness scaling
-  sunsetColor.nscale8(brightness);
+  // The fade is part of the effect; global user brightness is applied by LightService.
+  sunsetColor.nscale8(effectBrightness);
   
   // Set all LEDs to the sunset color
   for (uint16_t i = 0; i < LED_NUM_LEDS; i++) {
@@ -129,8 +126,44 @@ void SunsetMode::customClick() {
   
   Serial.println("[SunsetMode] Manual shutdown - staying off until mode change");
   
-  // Broadcast shutdown to mesh network
+  // Broadcast shutdown to synchronized lamps
   this->broadcastSunsetShutdown();
+}
+
+bool SunsetMode::handleRemoteCommand(const String& command, const JsonDocument& payload) {
+  if (command == "start") {
+    if (!payload["duration"].is<int>()) {
+      return false;
+    }
+
+    int duration = payload["duration"].as<int>();
+    if (duration < 0 || duration > 3) {
+      return false;
+    }
+
+    this->currentDuration = duration;
+    this->sunsetDurationMs = DURATION_OPTIONS[this->currentDuration];
+    this->sunsetStartTime = millis();
+    this->currentPhase = GOLDEN_HOUR;
+    this->isManualShutdown = false;
+    this->sunsetActive = true;
+    this->registry.setInt("duration", this->currentDuration);
+    this->registry.setBool("manual_shutdown", false);
+    this->registry.setBool("sunset_active", true);
+    return true;
+  }
+
+  if (command == "shutdown") {
+    this->isManualShutdown = true;
+    this->sunsetActive = false;
+    this->currentPhase = COMPLETE;
+    this->registry.setBool("manual_shutdown", true);
+    this->registry.setBool("sunset_active", false);
+    this->lightService->fill(CRGB::Black);
+    return true;
+  }
+
+  return false;
 }
 
 bool SunsetMode::newDuration() {
@@ -222,7 +255,7 @@ void SunsetMode::startSunset() {
   
   Serial.println("[SunsetMode] Starting " + DURATION_NAMES[this->currentDuration] + " sunset");
   
-  // Broadcast sunset start to mesh network
+  // Broadcast sunset start to synchronized lamps
   this->broadcastSunsetStart();
 }
 
@@ -250,12 +283,10 @@ void SunsetMode::showDurationFeedback() {
 
 void SunsetMode::broadcastSunsetStart() {
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "sunset_start";
-    doc["duration"] = this->sunsetDurationMs;
-    doc["timestamp"] = millis();
+    JsonDocument payload;
+    payload["duration"] = this->currentDuration;
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("start", payload);
     
     Serial.println("[SunsetMode] Broadcast sunset start");
   }
@@ -263,11 +294,10 @@ void SunsetMode::broadcastSunsetStart() {
 
 void SunsetMode::broadcastSunsetShutdown() {
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "sunset_shutdown";
-    doc["nodeId"] = this->communicationService->getNodeId();
+    JsonDocument payload;
+    payload.to<JsonObject>();
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("shutdown", payload);
     
     Serial.println("[SunsetMode] Broadcast sunset shutdown");
   }

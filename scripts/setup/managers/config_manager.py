@@ -79,46 +79,36 @@ class ConfigManager:
             ErrorHandler.handle_error(e, "creating configuration from template")
             return False
             
-    def configure_mesh(self):
-        """Configure mesh network settings."""
-        ASCIIArt.show_separator("Mesh Network Configuration")
+    def configure_esp_now(self):
+        """Configure ESP-NOW synchronization settings."""
+        ASCIIArt.show_separator("ESP-NOW Configuration")
         
-        print("\n🌐 The GlowLight supports mesh networking between multiple lamps.")
+        print("\n🌐 GlowLight uses ESP-NOW to synchronize multiple lamps.")
         print("   This allows lamps to synchronize modes and effects.")
         
-        # Ask if mesh should be enabled
-        enable_mesh = self._ask_yes_no(
-            "\n🔗 Do you want to enable mesh networking?", 
-            default=False
+        enabled = self._ask_yes_no(
+            "\n🔗 Do you want to enable wireless synchronization?",
+            default=True
         )
         
-        mesh_config = {'MESH_ON': enable_mesh}
+        communication_config = {'MESH_ON': enabled}
         
-        if enable_mesh:
-            print("\n📡 Configuring mesh network parameters...")
-            
-            # Get mesh prefix (SSID)
-            default_prefix = "GlowMesh"
-            mesh_prefix = input(f"🏷️  Mesh network name (SSID) [{default_prefix}]: ").strip()
-            if not mesh_prefix:
-                mesh_prefix = default_prefix
-                
-            # Get mesh password
-            default_password = "GlowMesh"
-            mesh_password = input(f"🔐 Mesh network password [{default_password}]: ").strip()
-            if not mesh_password:
-                mesh_password = default_password
-                
-            mesh_config.update({
-                'MESH_PREFIX': f'"{mesh_prefix}"',
-                'MESH_PASSWORD': f'"{mesh_password}"'
-            })
-            
-            ASCIIArt.show_success(f"Mesh configured: {mesh_prefix}")
+        if enabled:
+            while True:
+                response = input("📡 ESP-NOW WiFi channel (1-13) [1]: ").strip()
+
+                try:
+                    communication_config['ESPNOW_CHANNEL'] = int(response or 1)
+                except ValueError:
+                    ASCIIArt.show_error("Please enter a number between 1 and 13")
+                    continue
+
+                if self.validator.validate_communication_config(communication_config):
+                    break
         else:
-            ASCIIArt.show_info("Mesh networking disabled")
+            ASCIIArt.show_info("Wireless synchronization disabled")
             
-        return mesh_config
+        return communication_config
         
     def configure_pins(self):
         """Configure GPIO pin assignments."""
@@ -185,11 +175,11 @@ class ConfigManager:
             
         return new_pins
         
-    def apply_configuration(self, mesh_config, pin_config):
+    def apply_configuration(self, communication_config, pin_config):
         """Apply configuration changes to the config file.
         
         Args:
-            mesh_config: Mesh network configuration dict
+            communication_config: ESP-NOW communication configuration dict
             pin_config: Pin configuration dict
             
         Returns:
@@ -204,8 +194,8 @@ class ConfigManager:
             with open(self.config_path, 'r') as f:
                 content = f.read()
                 
-            # Apply mesh configuration
-            for key, value in mesh_config.items():
+            # Apply communication configuration
+            for key, value in communication_config.items():
                 content = self._update_define(content, key, value)
                 
             # Apply pin configuration  

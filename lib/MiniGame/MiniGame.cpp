@@ -18,7 +18,7 @@ void MiniGame::setup() {
 
 void MiniGame::customFirst() {
   this->counter = 0;
-  this->updateBrightness(64);
+  this->setDesiredBrightness(64);
 
   this->lightService->setLightUpdateSteps(map(
     this->speed, MINIGAME_SPEED_MIN, MINIGAME_SPEED_MAX,
@@ -42,10 +42,10 @@ void MiniGame::customLoop() {
           continue;
         }
 
-        this->lightService->updateLed(i, i == this->goalIndex ? CRGB::Green : CRGB::Black);
+        this->lightService->setLedImmediate(i, i == this->goalIndex ? CRGB::Green : CRGB::Black);
       }
 
-      this->lightService->updateLed(
+      this->lightService->setLedImmediate(
         this->position, this->position == this->goalIndex ? CRGB::Gold : CRGB::White);
     }
   }
@@ -71,7 +71,7 @@ void MiniGame::customClick() {
 
   this->goalIndex = (this->goalIndex + 1) % LED_NUM_LEDS;
 
-  this->lightService->updateLed(
+  this->lightService->setLedImmediate(
     this->goalIndex, this->goalIndex != this->position ? CRGB::Green : CRGB::Gold);
 }
 

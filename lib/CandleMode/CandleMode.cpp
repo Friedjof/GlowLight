@@ -18,7 +18,7 @@ void CandleMode::setup() {
   this->colors.add(CRGB(255, 95,  35)); // molten glow
   this->colors.add(CRGB(255, 72,  20)); // fiery crimson
 
-  this->addOption("Brightness", std::function<void()>([this](){ this->setBrightness(); }));
+  this->addOption("Brightness", std::function<void()>([this](){ this->updateBrightnessFromSensor(); }));
   this->addOption("Speed", std::function<void()>([this](){ this->newSpeed(); }));
 }
 

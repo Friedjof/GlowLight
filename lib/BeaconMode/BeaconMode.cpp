@@ -24,7 +24,7 @@ void BeaconMode::setup() {
     this->newHueTwo();
   }, true);
   this->addOption("Brightness", std::function<void()>([this](){
-    this->setBrightness();
+    this->updateBrightnessFromSensor();
   }));
 }
 
@@ -119,6 +119,6 @@ void BeaconMode::setHue(uint16_t index, uint8_t hue) {
   if (this->smoothTransition) {
     this->lightService->setLed(index, CHSV(hue, 255, 255));
   } else {
-    this->lightService->updateLed(index, CHSV(hue, 255, 255));
+    this->lightService->setLedImmediate(index, CHSV(hue, 255, 255));
   }
 }

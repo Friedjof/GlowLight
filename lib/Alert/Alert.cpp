@@ -10,7 +10,6 @@ Alert::Alert(LightService* lightService, DistanceService* distanceService, Commu
 }
 
 void Alert::setup() {
-  this->lightService->setBrightness(0);
   this->lightService->fill(this->color);
 }
 
@@ -18,6 +17,7 @@ void Alert::customFirst() {
   this->flashing = true;
   this->index = 0;
 
+  this->applyHardwareBrightness(0);
   this->lightService->fill(this->color);
 }
 
@@ -26,7 +26,7 @@ void Alert::customLoop() {
     return;
   }
 
-  this->updateBrightness(this->index % (LED_MAX_BRIGHTNESS * 2 - 1) < LED_MAX_BRIGHTNESS ? 
+  this->applyHardwareBrightness(this->index % (LED_MAX_BRIGHTNESS * 2 - 1) < LED_MAX_BRIGHTNESS ?
     this->index % LED_MAX_BRIGHTNESS : 
     LED_MAX_BRIGHTNESS - (this->index % LED_MAX_BRIGHTNESS));
 

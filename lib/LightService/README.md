@@ -8,7 +8,7 @@ Der LightService verwaltet alle LED-bezogenen Operationen und stellt eine einhei
 
 - **LED-Verwaltung**: Direkte Kontrolle über WS2812B LEDs
 - **Sanfte Übergänge**: Automatische Interpolation zwischen Farbzuständen
-- **Helligkeitssteuerung**: Globale Helligkeitsanpassung
+- **Hardware-Helligkeit**: Einziger Besitzer des globalen FastLED-Werts
 - **Farboperationen**: Vielfältige Methoden zum Setzen von Farben
 - **Performance-Optimierung**: Effiziente Updates nur bei Änderungen
 
@@ -28,17 +28,16 @@ ESP32-C3 ──→ GPIO 3 ──→ WS2812B LED Strip (11 LEDs)
 ### Grundfunktionen
 - `setup()`: Initialisierung der LED-Hardware
 - `loop()`: Automatische Übergangsaktualisierung
-- `show()`: Sofortige LED-Aktualisierung
-
 ### Farbsteuerung
 - `fill(r, g, b)`: Alle LEDs in RGB-Farbe
-- `setLED(index, color)`: Einzelne LED setzen
-- `setRange(start, end, color)`: LED-Bereich färben
-- `clear()`: Alle LEDs ausschalten
+- `setLed(index, color)`: Einzelnes LED-Ziel mit sanftem Übergang setzen
+- `fillImmediate(color)`: Alle LEDs ohne Übergang für den nächsten Frame setzen
+- `setLedImmediate(index, color)`: Einzelne LED ohne Übergang für den nächsten Frame setzen
 
 ### Effekte
 - `fade()`: Sanftes Ein-/Ausblenden
-- `setBrightness()`: Globale Helligkeit
+- `setHardwareBrightness()`: Globalen FastLED-Hardwarewert setzen
+- `getHardwareBrightness()`: Aktuellen FastLED-Hardwarewert lesen
 - `setLightUpdateSteps()`: Übergangsgeschwindigkeit
 
 ## Sanfte Übergänge
@@ -73,10 +72,10 @@ lightService.setup();
 lightService.fill(255, 0, 0);
 
 // Helligkeit auf 50%
-lightService.setBrightness(128);
+lightService.setHardwareBrightness(128);
 
 // Einzelne LED blau
-lightService.setLED(5, CRGB::Blue);
+lightService.setLed(5, CRGB::Blue);
 
 // Updates in loop()
 lightService.loop();
@@ -88,3 +87,7 @@ lightService.loop();
 - **Interpolation**: CPU-effiziente Farbübergänge
 - **FastLED-Integration**: Optimierte Hardware-Kommunikation
 - **Memory-Management**: Minimaler RAM-Verbrauch
+
+Modi speichern ihren gewünschten Helligkeitswert selbst. `LightService` kennt nur
+den aktuell auf der Hardware gesetzten Wert und sendet pro Übergangsframe höchstens
+ein `FastLED.show()`.

@@ -128,57 +128,59 @@ bool AbstractMode::optionHasChanged() {
   return false;
 }
 
+void AbstractMode::sendCommand(const String& command, const JsonDocument& payload) {
+  if (this->communicationService == nullptr) {
+    return;
+  }
+
+  this->communicationService->sendModeCommand(this->title, this->version, command, payload);
+}
+
 // brightness functions
-bool AbstractMode::setBrightness() {
+bool AbstractMode::updateBrightnessFromSensor() {
   if ((!this->distanceService->isObjectPresent() && !this->distanceService->hasObjectDisappeared() && !this->distanceService->hasWipeDetected()) || this->distanceService->fixed()) {
     return false;
   }
 
   if (this->currentResult.level != this->lastResult.level) {
-    uint16_t brightness = 0;
+    uint8_t brightness = 0;
 
     if (!this->distanceService->hasWipeDetected()) {
       brightness = this->expNormalize(this->currentResult.level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, .5);
     } else {
-      if (this->brightness == LED_MIN_BRIGHTNESS) {
+      if (this->desiredBrightness == LED_MIN_BRIGHTNESS) {
         brightness = LED_MAX_BRIGHTNESS;
       } else {
         brightness = LED_MIN_BRIGHTNESS;
       }
     }
 
-    this->lightService->setBrightness(brightness);
-
     this->lastResult = this->currentResult;
-    this->brightness = brightness;
-
-    return true;
+    return this->setDesiredBrightness(brightness);
   }
 
   return false;
 }
 
-bool AbstractMode::resetBrightness() {
-  this->lightService->setBrightness(this->brightness);
-
-  return true;
+void AbstractMode::applyDesiredBrightness() {
+  this->applyHardwareBrightness(this->desiredBrightness);
 }
 
-// update brightness
-bool AbstractMode::updateBrightness(uint16_t brightness) {
-  if (brightness == this->brightness) {
-    return false;
-  }
-
-  this->brightness = brightness;
-
-  this->lightService->setBrightness(this->brightness);
-
-  return true;
+void AbstractMode::applyHardwareBrightness(uint8_t brightness) {
+  this->lightService->setHardwareBrightness(brightness);
 }
 
-uint16_t AbstractMode::getBrightness() {
-  return this->brightness;
+bool AbstractMode::setDesiredBrightness(uint8_t brightness) {
+  bool changed = brightness != this->desiredBrightness;
+
+  this->desiredBrightness = brightness;
+  this->applyDesiredBrightness();
+
+  return changed;
+}
+
+uint8_t AbstractMode::getDesiredBrightness() {
+  return this->desiredBrightness;
 }
 
 // distance functions
@@ -207,7 +209,7 @@ uint16_t AbstractMode::invExpNormalize(uint16_t input, uint16_t min, uint16_t ma
 // serialize and deserialize
 JsonDocument AbstractMode::serialize() {
   this->registry.setInt("currentOption", this->currentOption);
-  this->registry.setInt("brightness", this->brightness);
+  this->registry.setInt("brightness", this->desiredBrightness);
 
   return this->registry.serialize();
 }
@@ -217,13 +219,13 @@ void AbstractMode::deserialize(JsonDocument doc) {
   this->registry.deserialize(doc);
 
   this->currentOption = this->registry.getInt("currentOption");
-  this->brightness = this->registry.getInt("brightness");
+  this->desiredBrightness = this->registry.getInt("brightness");
 
   // call the setup function of the derived class
   this->optionChanged = true;
   this->optionCalled = false;
 
-  this->resetBrightness();
+  this->applyDesiredBrightness();
 
   Serial.println("[DEBUG] Deserialized data");
 }
@@ -238,7 +240,7 @@ void AbstractMode::loop() {
 }
 
 void AbstractMode::first() {
-  this->resetBrightness();
+  this->applyDesiredBrightness();
   this->lightService->setLightUpdateSteps(LED_UPDATE_STEPS);
 
   this->customFirst();
@@ -252,15 +254,18 @@ void AbstractMode::modeSetup() {
   this->registry.setVersion(this->getVersion());
 
   // initialize the registry
-  this->registry.init("currentOption", RegistryType::INT, 0, 0, this->getNumberOfOptions() - 1);
+  uint8_t maximumOption = this->getNumberOfOptions() == 0 ? 0 : this->getNumberOfOptions() - 1;
+  this->registry.init("currentOption", RegistryType::INT, 0, 0, maximumOption);
   this->registry.init("brightness", RegistryType::INT, LED_DEFAULT_BRIGHTNESS, 0, LED_MAX_BRIGHTNESS);
 }
 
 void AbstractMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
   // Default: Apply as brightness
   // Convert level to brightness using exponential normalization
-  uint16_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
+  uint8_t brightness = this->expNormalize(level, 0, DISTANCE_LEVELS, LED_MAX_BRIGHTNESS, 0.5);
+  this->setDesiredBrightness(brightness);
+}
 
-  this->lightService->setBrightness(brightness);
-  this->brightness = brightness;
+bool AbstractMode::handleRemoteCommand(const String& command, const JsonDocument& payload) {
+  return false;
 }

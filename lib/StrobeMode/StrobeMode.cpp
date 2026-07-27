@@ -28,7 +28,7 @@ const CRGB StrobeMode::PARTY_COLORS[6] = {
 StrobeMode::StrobeMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) 
   : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Strobe";
-  this->description = "Synchronized party strobe lighting with mesh coordination";
+  this->description = "Synchronized party strobe lighting with ESP-NOW coordination";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
   this->version = "1.0.0";
@@ -61,11 +61,8 @@ void StrobeMode::setup() {
   this->globalStartTime = 0;
   this->isSynchronized = false;
 
-  // Set maximum brightness for strobe effect
-  this->lightService->setBrightness(LED_MAX_BRIGHTNESS);
-
   // Add mode options
-  this->addOption("Brightness", std::function<void()>([this](){ this->setBrightness(); }));
+  this->addOption("Brightness", std::function<void()>([this](){ this->updateBrightnessFromSensor(); }));
   this->addOption("Speed", std::function<void()>([this](){ this->newSpeed(); }));
 
   Serial.println("[StrobeMode] Setup complete - " + SPEED_NAMES[this->currentSpeed]);
@@ -127,7 +124,7 @@ void StrobeMode::customLoop() {
     uint32_t timeInCycle = meshTime % soloInterval;
     if (timeInCycle < FLASH_DURATION) {
       CRGB color = this->getStrobeColor();
-      color.nscale8((uint8_t)(255 * this->intensityMultiplier));
+      color.nscale8((uint8_t)min(255.0f, 255.0f * this->intensityMultiplier));
       this->lightService->fill(color);
     } else {
       this->lightService->fill(CRGB::Black);
@@ -140,7 +137,7 @@ void StrobeMode::customLoop() {
     CRGB color = this->getStrobeColor();
     
     // Apply intensity multiplier from distance sensor
-    color.nscale8((uint8_t)(255 * this->intensityMultiplier));
+    color.nscale8((uint8_t)min(255.0f, 255.0f * this->intensityMultiplier));
     
     // Burst mode: extra bright
     if (this->isBurstMode) {
@@ -327,12 +324,11 @@ void StrobeMode::handleGestures() {
 
 void StrobeMode::broadcastSpeedChange() {
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "strobe_speed_change";
-    doc["speed"] = this->currentSpeed;
-    doc["interval"] = SPEED_INTERVALS[this->currentSpeed];
+    JsonDocument payload;
+    payload["speed"] = this->currentSpeed;
+    payload["startTime"] = this->globalStartTime;
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("speed_change", payload);
     
     Serial.println("[StrobeMode] Broadcasted speed change");
   }
@@ -340,11 +336,10 @@ void StrobeMode::broadcastSpeedChange() {
 
 void StrobeMode::broadcastPatternChange() {
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "strobe_pattern_change";
-    doc["pattern"] = this->currentPattern;
+    JsonDocument payload;
+    payload["pattern"] = this->currentPattern;
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("pattern_change", payload);
     
     Serial.println("[StrobeMode] Broadcasted pattern change");
   }
@@ -352,11 +347,10 @@ void StrobeMode::broadcastPatternChange() {
 
 void StrobeMode::broadcastEmergencyStop() {
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "strobe_emergency_stop";
-    doc["nodeId"] = this->communicationService->getNodeId();
+    JsonDocument payload;
+    payload.to<JsonObject>();
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("emergency_stop", payload);
     
     Serial.println("[StrobeMode] Broadcasted emergency stop");
   }
@@ -419,13 +413,12 @@ void StrobeMode::synchronizeStrobeStart() {
   
   // Broadcast sync start time to all lamps
   if (this->communicationService) {
-    JsonDocument doc;
-    doc["type"] = "strobe_sync_start";
-    doc["start_time"] = this->globalStartTime;
-    doc["speed"] = this->currentSpeed;
-    doc["pattern"] = this->currentPattern;
+    JsonDocument payload;
+    payload["startTime"] = this->globalStartTime;
+    payload["speed"] = this->currentSpeed;
+    payload["pattern"] = this->currentPattern;
     
-    this->communicationService->sendEvent(doc);
+    this->sendCommand("sync_start", payload);
     
     Serial.println("[StrobeMode] Broadcasted sync start time: " + String(this->globalStartTime));
   }
@@ -433,38 +426,78 @@ void StrobeMode::synchronizeStrobeStart() {
   this->isSynchronized = true;
 }
 
-void StrobeMode::handleMeshMessage(JsonDocument& message) {
-  String type = message["type"];
-  
-  if (type == "strobe_sync_start") {
-    // Synchronize start time with other lamps
-    this->globalStartTime = message["start_time"];
-    this->currentSpeed = message["speed"];
-    this->currentPattern = message["pattern"];
+bool StrobeMode::handleRemoteCommand(const String& command, const JsonDocument& payload) {
+  if (command == "sync_start") {
+    if (!payload["startTime"].is<uint32_t>() || !payload["speed"].is<int>() ||
+        !payload["pattern"].is<int>()) {
+      return false;
+    }
+
+    int speed = payload["speed"].as<int>();
+    int pattern = payload["pattern"].as<int>();
+    if (speed < 0 || speed > 3 || pattern < 0 || pattern > 3) {
+      return false;
+    }
+
+    this->globalStartTime = payload["startTime"].as<uint32_t>();
+    this->currentSpeed = speed;
+    this->currentPattern = pattern;
     this->isSynchronized = true;
-    
-    Serial.println("[StrobeMode] Synchronized with start time: " + String(this->globalStartTime));
-    
-  } else if (type == "strobe_speed_change") {
-    this->currentSpeed = message["speed"];
     this->registry.setInt("speed", this->currentSpeed);
-    
-    // Re-synchronize with new speed
-    this->synchronizeStrobeStart();
-    
-    Serial.println("[StrobeMode] Speed synchronized: " + SPEED_NAMES[this->currentSpeed]);
-    
-  } else if (type == "strobe_pattern_change") {
-    this->currentPattern = message["pattern"];
     this->registry.setInt("pattern", this->currentPattern);
     
+    Serial.println("[StrobeMode] Synchronized with start time: " + String(this->globalStartTime));
+
+    return true;
+  }
+
+  if (command == "speed_change") {
+    if (!payload["speed"].is<int>() || !payload["startTime"].is<uint32_t>()) {
+      return false;
+    }
+
+    int speed = payload["speed"].as<int>();
+    if (speed < 0 || speed > 3) {
+      return false;
+    }
+
+    this->currentSpeed = speed;
+    this->globalStartTime = payload["startTime"].as<uint32_t>();
+    this->isSynchronized = true;
+    this->registry.setInt("speed", this->currentSpeed);
+
+    Serial.println("[StrobeMode] Speed synchronized: " + SPEED_NAMES[this->currentSpeed]);
+
+    return true;
+  }
+
+  if (command == "pattern_change") {
+    if (!payload["pattern"].is<int>()) {
+      return false;
+    }
+
+    int pattern = payload["pattern"].as<int>();
+    if (pattern < 0 || pattern > 3) {
+      return false;
+    }
+
+    this->currentPattern = pattern;
+    this->registry.setInt("pattern", this->currentPattern);
+
     Serial.println("[StrobeMode] Pattern synchronized: " + String(this->currentPattern));
-    
-  } else if (type == "strobe_emergency_stop") {
+
+    return true;
+  }
+
+  if (command == "emergency_stop") {
     this->isEmergencyStop = true;
     this->registry.setBool("emergency_stop", true);
     this->lightService->fill(CRGB::Black);
-    
+
     Serial.println("[StrobeMode] Emergency stop received from network");
+
+    return true;
   }
+
+  return false;
 }

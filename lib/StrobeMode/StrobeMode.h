@@ -17,6 +17,7 @@ class StrobeMode : public AbstractMode {
     void last();
 
     void customClick();
+    bool handleRemoteCommand(const String& command, const JsonDocument& payload) override;
 
     bool newSpeed();
 
@@ -64,7 +65,6 @@ class StrobeMode : public AbstractMode {
     // Helper methods
     bool shouldFlash(uint32_t meshTime, uint32_t interval);
     void synchronizeStrobeStart();
-    void handleMeshMessage(JsonDocument& message);
     CRGB getStrobeColor();
     void updateDistanceSensorEffects();
     void handleGestures();

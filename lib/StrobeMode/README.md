@@ -1,6 +1,6 @@
 # StrobeMode
 
-High-energy synchronized strobe lighting system designed for party atmospheres with mesh network coordination and gesture controls.
+High-energy synchronized strobe lighting system designed for party atmospheres with ESP-NOW coordination and gesture controls.
 
 ## Features
 

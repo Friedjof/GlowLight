@@ -15,11 +15,8 @@ void RainbowMode::setup() {
   this->registry.init("speed", RegistryType::INT, RAINBOW_SPEED_DEFAULT, RAINBOW_SPEED_MIN, RAINBOW_SPEED_MAX);
   this->registry.init("stopped", RegistryType::BOOL, false);
 
-  // set the brightness to the maximum
-  this->lightService->setBrightness(LED_MAX_BRIGHTNESS);
-
   // add mode options
-  this->addOption("Brightness", std::function<void()>([this](){ this->setBrightness(); }));
+  this->addOption("Brightness", std::function<void()>([this](){ this->updateBrightnessFromSensor(); }));
   this->addOption("Saturation", std::function<void()>([this](){ this->newSaturation(); }));
   this->addOption("Speed", std::function<void()>([this](){ this->newSpeed(); }));
 }

@@ -1,5 +1,8 @@
 #include "CommunicationService.h"
 
+#ifndef GLOW_HEARTBEAT_INTERVAL
+#define GLOW_HEARTBEAT_INTERVAL HARTBEAT_INTERVAL
+#endif
 
 // Static instance for callback
 CommunicationService* CommunicationService::instance = nullptr;
@@ -9,8 +12,16 @@ CommunicationService::CommunicationService() {
 }
 
 CommunicationService::~CommunicationService() {
+  if (CommunicationService::instance == this) {
+    CommunicationService::instance = nullptr;
+  }
+
   if (this->espNowInitialized) {
     esp_now_deinit();
+  }
+
+  if (this->receiveQueue != nullptr) {
+    vQueueDelete(this->receiveQueue);
   }
 }
 
@@ -45,6 +56,15 @@ void CommunicationService::setup() {
   // Set static instance for callback
   CommunicationService::instance = this;
 
+  this->receiveQueue = xQueueCreate(RECEIVE_QUEUE_LENGTH, sizeof(PendingMessage));
+  if (this->receiveQueue == nullptr) {
+    Serial.println("[ERROR] Failed to create ESP-NOW receive queue");
+    CommunicationService::instance = nullptr;
+    this->espNowInitialized = false;
+    esp_now_deinit();
+    return;
+  }
+
   // Register receive callback
   esp_now_register_recv_cb(CommunicationService::onDataRecv);
 
@@ -67,8 +87,14 @@ void CommunicationService::setup() {
 void CommunicationService::loop() {
   if (!MESH_ON || !this->espNowInitialized) return;
 
+  PendingMessage pendingMessage;
+  while (xQueueReceive(this->receiveQueue, &pendingMessage, 0) == pdTRUE) {
+    String message(pendingMessage.payload);
+    this->receivedCallback(pendingMessage.senderNodeId, message);
+  }
+
   // Send heartbeat
-  if (millis() - this->last_hartbeat > HARTBEAT_INTERVAL) {
+  if (millis() - this->last_hartbeat > GLOW_HEARTBEAT_INTERVAL) {
     this->last_hartbeat = millis();
     this->broadcast("{\"type\":2}");
   }
@@ -82,9 +108,9 @@ void CommunicationService::broadcast(String message) {
   if (!MESH_ON || !this->espNowInitialized) return;
 
   // Check message size
-  if (message.length() > ESPNOW_MAX_PAYLOAD) {
+  if (message.length() > MAX_PAYLOAD_SIZE) {
     Serial.printf("[ERROR] Message too large: %d bytes (max %d)\n",
-                  message.length(), ESPNOW_MAX_PAYLOAD);
+                  message.length(), MAX_PAYLOAD_SIZE);
     return;
   }
 
@@ -108,18 +134,55 @@ void CommunicationService::broadcast(String message) {
   }
 }
 
-void CommunicationService::sendEvent(JsonDocument event) {
+void CommunicationService::sendModeEvent(ModeEventKind kind, const String& title,
+                                         const String& version, const JsonDocument& payload,
+                                         const String& command) {
   if (!MESH_ON) return;
 
-  JsonDocument message;
+  JsonDocument event;
 
-  message["type"] = MessageType::EVENT;
-  message["message"] = event;
+  event["type"] = MessageType::EVENT;
+  event["message"]["eventKind"] = static_cast<uint8_t>(kind);
+  event["message"]["mode"]["title"] = title;
+  event["message"]["mode"]["version"] = version;
+  event["message"]["payload"] = payload;
+
+  if (kind == ModeEventKind::COMMAND) {
+    event["message"]["command"] = command;
+  }
 
   String msg;
-  serializeJson(message, msg);
+  serializeJson(event, msg);
 
   this->broadcast(msg);
+}
+
+void CommunicationService::sendStateEvent(const JsonDocument& state) {
+  String title = state["title"].as<String>();
+  String version = state["version"].as<String>();
+  JsonObjectConst registry = state["registry"].as<JsonObjectConst>();
+
+  if (title.isEmpty() || version.isEmpty() || registry.isNull()) {
+    Serial.println("[ERROR] Invalid mode state, event not sent");
+    return;
+  }
+
+  JsonDocument payload;
+  payload.set(registry);
+
+  this->sendModeEvent(ModeEventKind::STATE, title, version, payload);
+}
+
+void CommunicationService::sendModeCommand(const String& title, const String& version,
+                                           const String& command,
+                                           const JsonDocument& payload) {
+  if (title.isEmpty() || version.isEmpty() || command.isEmpty() ||
+      !payload.is<JsonObject>()) {
+    Serial.println("[ERROR] Invalid mode command, event not sent");
+    return;
+  }
+
+  this->sendModeEvent(ModeEventKind::COMMAND, title, version, payload, command);
 }
 
 void CommunicationService::sendSync(uint64_t timestamp) {
@@ -158,6 +221,7 @@ void CommunicationService::sendDistanceUpdate(uint16_t distance, uint16_t level)
   message["type"] = MessageType::LEVEL;
   message["message"]["distance"] = distance;
   message["message"]["level"] = level;
+  message["message"]["active"] = true;
 
   String msg;
   serializeJson(message, msg);
@@ -181,11 +245,10 @@ void CommunicationService::macToString(const uint8_t* mac, char* buffer) {
 }
 
 void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, int len) {
-  if (instance == nullptr) return;
+  if (instance == nullptr || instance->receiveQueue == nullptr) return;
 
   // Validate message size
-  if (len < 12) {  // Minimum header size
-    Serial.printf("[ERROR] Received message too small: %d bytes\n", len);
+  if (len < MESSAGE_HEADER_SIZE || len > ESP_NOW_MAX_DATA_LEN) {
     return;
   }
 
@@ -200,32 +263,25 @@ void CommunicationService::onDataRecv(const uint8_t* mac, const uint8_t* data, i
 
   // Validate sender MAC
   if (memcmp(mac, senderMac, 6) != 0) {
-    Serial.println("[ERROR] MAC mismatch in received message");
     return;
   }
 
   // Validate payload length
-  if (payloadLength > ESPNOW_MAX_PAYLOAD) {
-    Serial.printf("[ERROR] Invalid payload length: %u (max %d)\n",
-                  payloadLength, ESPNOW_MAX_PAYLOAD);
+  if (payloadLength > MAX_PAYLOAD_SIZE) {
     return;
   }
 
   // Validate total message size
-  if (len < 12 + payloadLength) {
-    Serial.printf("[ERROR] Message truncated: expected %d bytes, got %d\n",
-                  12 + payloadLength, len);
+  if (len < MESSAGE_HEADER_SIZE + payloadLength) {
     return;
   }
 
-  // Extract payload
-  char payload[ESPNOW_MAX_PAYLOAD + 1];
-  memcpy(payload, data + 12, payloadLength);
-  payload[payloadLength] = '\0';
+  PendingMessage pendingMessage;
+  pendingMessage.senderNodeId = senderNodeId;
+  memcpy(pendingMessage.payload, data + MESSAGE_HEADER_SIZE, payloadLength);
+  pendingMessage.payload[payloadLength] = '\0';
 
-  // Create String and call receivedCallback
-  String msgStr(payload);
-  instance->receivedCallback(senderNodeId, msgStr);
+  xQueueSend(instance->receiveQueue, &pendingMessage, 0);
 }
 
 // manage nodes
@@ -337,23 +393,16 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   bool isNewNode = !this->updateNode(from);
 
   // Call callback for new nodes
-  if (isNewNode && this->alertCallback != nullptr) {
-    this->alertCallback();
+  if (isNewNode) {
+    Serial.printf("[INFO] Discovered node %u\n", from);
+
+    if (this->connectionCallback != nullptr) {
+      this->connectionCallback(from);
+    }
   }
 
   // If heartbeat, ignore (already updated node)
   if (type == MessageType::HEARTBEAT) {
-    return;
-  }
-
-  // If LEVEL message, apply brightness immediately
-  if (type == MessageType::LEVEL) {
-    uint8_t brightness = message["brightness"];
-
-    // Apply brightness to current mode (done via Controller callback)
-    if (this->receivedControllerCallback != nullptr) {
-      this->receivedControllerCallback(from, message, type);
-    }
     return;
   }
 
@@ -365,8 +414,8 @@ void CommunicationService::receivedCallback(uint32_t from, String &msg) {
   this->receivedControllerCallback(from, message, type);
 }
 
-bool CommunicationService::onNewConnection(std::function<void()> callback) {
-  this->alertCallback = callback;
+bool CommunicationService::onNewConnection(std::function<void(uint32_t)> callback) {
+  this->connectionCallback = callback;
 
   return true;
 }

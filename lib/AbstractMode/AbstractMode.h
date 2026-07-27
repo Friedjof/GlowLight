@@ -59,13 +59,16 @@ class AbstractMode {
 		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
 		result_t lastResult = {0, 0};
 
-		uint16_t brightness = LED_DEFAULT_BRIGHTNESS;
+		uint8_t desiredBrightness = LED_DEFAULT_BRIGHTNESS;
 
 		uint16_t expNormalize(uint16_t input, uint16_t min, uint16_t max, uint16_t levels, double factor);
 		uint16_t invExpNormalize(uint16_t input, uint16_t min, uint16_t max, uint16_t levels, double factor);
 
 		bool addOption(String title, std::function<void()> callback, bool alert = true, bool onlyOnce = false, bool disabled = false);
 		bool callCurrentOption();
+		void sendCommand(const String& command, const JsonDocument& payload);
+		void applyDesiredBrightness();
+		void applyHardwareBrightness(uint8_t brightness);
 
 	public:
 		AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
@@ -82,12 +85,12 @@ class AbstractMode {
 		bool recallCurrentOption();
 
 		virtual void applyRemoteUpdate(uint16_t distance, uint16_t level);
+		virtual bool handleRemoteCommand(const String& command, const JsonDocument& payload);
 
-		bool setBrightness();
-		bool resetBrightness();
-		bool updateBrightness(uint16_t brightness);
+		bool updateBrightnessFromSensor();
+		bool setDesiredBrightness(uint8_t brightness);
 
-		uint16_t getBrightness();
+		uint8_t getDesiredBrightness();
 		uint16_t getLevel();
 		uint16_t getDistance();
 

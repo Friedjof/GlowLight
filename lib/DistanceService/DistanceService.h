@@ -2,12 +2,11 @@
 #define DISTANCESERVICE_H
 
 #include <Arduino.h>
+#include <Wire.h>
 
 #include "Adafruit_VL53L0X.h"
 
 #include "GlowConfig.h"
-
-class CommunicationService;  // Forward declaration
 
 typedef struct {
   uint16_t distance;
@@ -18,9 +17,6 @@ typedef struct {
 
 class DistanceService {
   public:
-    DistanceService(CommunicationService* communicationService);
-    ~DistanceService();
-
     void setup();
     void loop();
 
@@ -42,32 +38,46 @@ class DistanceService {
     bool isObjectPresent(uint16_t distance);
     bool hasObjectDisappeared();
     bool hasWipeDetected();
+    bool consumeLevelChange();
 
     bool alert();
 
-    void setRemoteResult(uint16_t distance, uint16_t level);
-
   private:
-    Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
-    CommunicationService* communicationService;
+    static constexpr uint8_t DISTANCE_FILTER_SAMPLES = 3;
 
-    result_t result = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
+    void recoverI2CBus();
+    uint8_t probeSensor();
+    bool readRegister(uint8_t reg, uint8_t* value);
+    bool initializeSensor(uint8_t attempt, uint8_t totalAttempts);
+    void resetDistanceFilter();
+    bool distanceFilterReady();
+
+    Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
+
+    result_t result = {0, LED_DEFAULT_BRIGHTNESS};
 
     uint8_t status = 0x00;
     bool sendAlert = false;
 
     uint64_t lastChange = 0;
     uint16_t measurements = 0;
+    uint16_t distanceSamples[DISTANCE_FILTER_SAMPLES] = {0};
+    uint8_t distanceSampleCount = 0;
+    uint8_t distanceSampleIndex = 0;
 
     bool sensorPresent = false;
+    bool measurementConfirmed = false;
+    uint8_t consecutiveMeasurementErrors = 0;
+    uint64_t nextRecoveryAttempt = 0;
     bool objectPresent = false;
+    bool maximumReached = false;
     bool objectDisappeared = false;
 
     bool wipeDetected = false;
     uint16_t numberOfWipes = 0;
     uint64_t lastWipe = 0;
 
-    bool resultFromRemote = false;
+    bool levelChanged = false;
 };
 
 #endif

@@ -322,7 +322,7 @@ class DeviceManagementWorkflow:
         # Basic capabilities for ESP32
         capabilities.append("🔧 GPIO Control")
         capabilities.append("📶 WiFi Communication")
-        capabilities.append("🌐 Mesh Networking")
+        capabilities.append("🌐 ESP-NOW Synchronization")
         capabilities.append("⚡ PWM Output")
         capabilities.append("📊 ADC Input")
         capabilities.append("🔗 Serial Communication")

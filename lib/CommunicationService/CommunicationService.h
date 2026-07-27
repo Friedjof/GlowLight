@@ -7,6 +7,8 @@
 #include <ArrayList.h>
 #include <ArduinoJson.h>
 #include <esp_now.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <WiFi.h>
 
 #include "GlowConfig.h"
@@ -29,8 +31,19 @@ enum MessageType {
   MAX
 };
 
+enum class ModeEventKind : uint8_t {
+  STATE = 0,
+  COMMAND = 1,
+  MAX
+};
+
 class CommunicationService {
   private:
+    static constexpr uint16_t MESSAGE_HEADER_SIZE = 12;
+    static constexpr uint16_t MAX_PAYLOAD_SIZE = ESP_NOW_MAX_DATA_LEN - MESSAGE_HEADER_SIZE;
+    static constexpr uint8_t RECEIVE_QUEUE_LENGTH = 8;
+    static constexpr uint8_t SEND_QUEUE_LENGTH = 8;
+
     // ESP-NOW Members
     uint8_t localMac[6];
     uint32_t localNodeId;
@@ -41,12 +54,26 @@ class CommunicationService {
       uint8_t senderMac[6];
       uint32_t senderNodeId;
       uint16_t payloadLength;
-      char payload[ESPNOW_MAX_PAYLOAD];
+      char payload[MAX_PAYLOAD_SIZE];
+    };
+
+    struct PendingMessage {
+      uint32_t senderNodeId;
+      char payload[MAX_PAYLOAD_SIZE + 1];
+    };
+
+    struct PendingTransmission {
+      uint16_t length;
+      uint8_t data[ESP_NOW_MAX_DATA_LEN];
     };
 
     static CommunicationService* instance; // For static callback
+    QueueHandle_t receiveQueue = nullptr;
+    QueueHandle_t sendQueue = nullptr;
+    PendingTransmission activeTransmission;
+    volatile bool sendInProgress = false;
 
-    std::function<void()> alertCallback = nullptr;
+    std::function<void(uint32_t)> connectionCallback = nullptr;
     std::function<void(uint32_t, JsonDocument, MessageType)> receivedControllerCallback = nullptr;
 
     ArrayList<GlowNode> nodes;
@@ -58,9 +85,13 @@ class CommunicationService {
     uint32_t macToNodeId(const uint8_t* mac);
     void macToString(const uint8_t* mac, char* buffer);
     static void onDataRecv(const uint8_t* mac, const uint8_t* data, int len);
+    static void onDataSent(const uint8_t* mac, esp_now_send_status_t status);
 
     void receivedCallback(uint32_t from, String &msg);
     void broadcast(String message);
+    void processSendQueue();
+    void sendModeEvent(ModeEventKind kind, const String& title, const String& version,
+                       const JsonDocument& payload, const String& command = "");
 
     void addNode(uint32_t id);
     uint16_t getNode(uint32_t id, GlowNode* node);
@@ -80,7 +111,9 @@ class CommunicationService {
     ArrayList<GlowNode> getNodes();
 
     // communication
-    void sendEvent(JsonDocument event);
+    void sendStateEvent(const JsonDocument& state);
+    void sendModeCommand(const String& title, const String& version, const String& command,
+                         const JsonDocument& payload);
     void sendSync(uint64_t timestamp);
     void sendWipe(uint16_t numberOfWipes);
     void sendDistanceUpdate(uint16_t distance, uint16_t level);
@@ -88,7 +121,7 @@ class CommunicationService {
     uint32_t getNodeId();
     uint32_t getMeshTime();
 
-    bool onNewConnection(std::function<void()> callback);
+    bool onNewConnection(std::function<void(uint32_t)> callback);
     bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callback);
 };
 

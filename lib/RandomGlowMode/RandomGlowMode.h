@@ -19,6 +19,7 @@ class RandomGlowMode : public AbstractMode {
     void last();
 
     void customClick();
+    bool handleRemoteCommand(const String& command, const JsonDocument& payload) override;
 
     bool newSpeed();
 

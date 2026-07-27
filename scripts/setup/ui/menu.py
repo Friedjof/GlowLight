@@ -363,18 +363,18 @@ class MenuSystem:
         
         print(f"{Colors.BLUE}📚 GlowLight Setup Tool:{Colors.RESET}")
         print(f"   This tool helps you configure, build, and flash the GlowLight")
-        print(f"   mesh networking firmware for ESP32-C3 devices.")
+        print(f"   ESP-NOW synchronization firmware for ESP32-C3 devices.")
         print()
         
         print(f"{Colors.BLUE}🚀 Quick Start:{Colors.RESET}")
-        print(f"   1. Run 'Project Configuration' to set up your mesh network")
+        print(f"   1. Run 'Project Configuration' to set up ESP-NOW")
         print(f"   2. Connect your ESP32-C3 device via USB")
         print(f"   3. Use 'Build & Flash' to compile and upload firmware")
         print(f"   4. Monitor device output with 'Serial Monitor'")
         print()
         
         print(f"{Colors.BLUE}⚙️  Configuration:{Colors.RESET}")
-        print(f"   • Mesh network settings (SSID, password, channel)")
+        print(f"   • ESP-NOW synchronization settings (enabled, channel)")
         print(f"   • GPIO pin assignments for LEDs and controls")
         print(f"   • Device-specific parameters")
         print()
