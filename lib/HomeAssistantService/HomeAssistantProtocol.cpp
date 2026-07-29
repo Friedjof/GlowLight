@@ -71,6 +71,34 @@ JsonObjectConst activeModeCapabilities(const JsonDocument& capabilities,
   return JsonObjectConst();
 }
 
+// The colour a mode offers, found by the declared format rather than by name, so
+// a new mode with a colour gets the picker without this file knowing about it.
+// Only a single unambiguous candidate counts.
+String colourSettingOf(JsonObjectConst mode) {
+  String found;
+  if (mode.isNull()) return found;
+  for (JsonPairConst entry : mode["settings"].as<JsonObjectConst>()) {
+    JsonObjectConst setting = entry.value().as<JsonObjectConst>();
+    if (!isControllableSetting(setting)) continue;
+    if (setting["format"].as<String>() != "rgb-hex") continue;
+    if (!found.isEmpty()) return String();  // ambiguous, offer none
+    found = entry.key().c_str();
+  }
+  return found;
+}
+
+bool parseHexColour(const String& hex, uint8_t* rgb) {
+  if (hex.length() != 6) return false;
+  for (uint8_t i = 0; i < 3; ++i) {
+    char pair[3] = {hex[i * 2], hex[i * 2 + 1], '\0'};
+    char* end = nullptr;
+    long value = strtol(pair, &end, 16);
+    if (end == pair || *end != '\0') return false;
+    rgb[i] = static_cast<uint8_t>(value);
+  }
+  return true;
+}
+
 }  // namespace
 
 namespace HomeAssistantProtocol {
@@ -99,6 +127,11 @@ bool buildDiscovery(const HomeAssistantIdentity& identity,
     light["schema"] = "json";
     light["brightness"] = true;
     light["brightness_scale"] = 255;
+    // Both modes are declared once; the state reports which one applies, because
+    // only some modes offer a colour and Home Assistant fixes this list at
+    // discovery time.
+    light["supported_color_modes"][0] = "rgb";
+    light["supported_color_modes"][1] = "brightness";
     light["state_topic"] = identity.baseTopic + "/light/state";
     light["command_topic"] = identity.baseTopic + "/light/set";
     addDeviceAvailability(light, identity);
@@ -241,17 +274,31 @@ bool buildState(const HomeAssistantIdentity& identity,
   // Full document first, so template users always see a consistent snapshot.
   if (!emitDocument(emit, stateTopic(identity), state, true)) return false;
 
+  JsonObjectConst activeMode = activeModeCapabilities(capabilities, activeModeId);
+
   {
     JsonDocument light;
     uint16_t brightness = registry[BRIGHTNESS_KEY] | 0;
     light["state"] = brightness > 0 ? "ON" : "OFF";
     light["brightness"] = brightness;
+
+    String colourKey = colourSettingOf(activeMode);
+    uint8_t rgb[3] = {};
+    if (!colourKey.isEmpty() && !registry[colourKey].isNull() &&
+        parseHexColour(registry[colourKey].as<String>(), rgb)) {
+      light["color_mode"] = "rgb";
+      light["color"]["r"] = rgb[0];
+      light["color"]["g"] = rgb[1];
+      light["color"]["b"] = rgb[2];
+    } else {
+      light["color_mode"] = "brightness";
+    }
+
     if (!emitDocument(emit, identity.baseTopic + "/light/state", light, true)) {
       return false;
     }
   }
 
-  JsonObjectConst activeMode = activeModeCapabilities(capabilities, activeModeId);
   if (!activeMode.isNull()) {
     if (!emit(identity.baseTopic + "/mode/state", activeMode["name"].as<String>(),
               true)) {
@@ -346,6 +393,28 @@ bool buildControlRequest(const HomeAssistantIdentity& identity,
     JsonDocument command;
     if (deserializeJson(command, payload) != DeserializationError::Ok) return false;
     if (activeModeId.isEmpty()) return false;
+
+    // A colour change goes to the setting the active mode declared for it.
+    // Home Assistant sends colour and brightness in separate messages, so this
+    // is handled as its own request rather than merged with the brightness one.
+    if (command["color"].is<JsonObjectConst>()) {
+      String colourKey =
+          colourSettingOf(activeModeCapabilities(capabilities, activeModeId));
+      if (colourKey.isEmpty()) return false;
+
+      char hex[7];
+      snprintf(hex, sizeof(hex), "%02X%02X%02X",
+               command["color"]["r"].as<uint8_t>(),
+               command["color"]["g"].as<uint8_t>(),
+               command["color"]["b"].as<uint8_t>());
+
+      (*request)["operation"] = "mode.setting.set";
+      (*request)["scope"] = scope;
+      (*request)["target"]["mode"] = activeModeId;
+      (*request)["setting"] = colourKey;
+      (*request)["value"] = hex;
+      return true;
+    }
 
     uint16_t brightness = 0;
     if (!command["brightness"].isNull()) {

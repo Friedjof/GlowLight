@@ -16,41 +16,41 @@ void StaticMode::setup() {
 
   this->addOption("Warm soft yellow", [this]() {
     this->fill(CRGB(255, 128, 20));
-  }, false);
+  }, false, true);
   this->addOption("Warmer pink", [this]() {
     this->fill(CRGB(255, 180, 200));
-  }, false);
+  }, false, true);
   this->addOption("Warm lavender", [this]() {
     this->fill(CRGB(230, 170, 255));
-  }, false);
+  }, false, true);
   this->addOption("Extra warm white", [this]() {
     this->fill(CRGB(255, 220, 170));
-  }, false);
+  }, false, true);
   this->addOption("Warm soft green", [this]() {
     this->fill(CRGB(160, 220, 160));
-  }, false);
+  }, false, true);
   this->addOption("Warmer soft blue", [this]() {
     this->fill(CRGB(190, 210, 240));
-  }, false);
+  }, false, true);
   this->addOption("Warm coral", [this]() {
     this->fill(CRGB(255, 155, 105));
-  }, false);
+  }, false, true);
   this->addOption("Gold", [this]() {
     this->fill(CRGB(255, 220, 70));
-  }, false);
+  }, false, true);
   this->addOption("Red", [this]() {
     this->fill(CRGB(240, 70, 70));
-  }, false);
+  }, false, true);
   this->addOption("Lime", [this]() {
     this->fill(CRGB(120, 255, 120));
-  }, false);
+  }, false, true);
   this->addOption("Blue", [this]() {
     this->fill(CRGB(100, 140, 255));
-  }, false);
+  }, false, true);
 }
 
 void StaticMode::customFirst() {
-  this->recallCurrentOption();
+  this->lightService->fill(this->registry.getColor("color"));
 }
 
 void StaticMode::customLoop() {

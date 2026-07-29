@@ -73,6 +73,7 @@ class AbstractMode {
 		                    bool groupCapable = true);
 		bool markSettingReadOnly(const String& key);
 		bool callCurrentOption();
+		void applyPresetOption();
 		void sendCommand(const String& command, const JsonDocument& payload);
 		void applyDesiredBrightness();
 		void applyHardwareBrightness(uint8_t brightness);

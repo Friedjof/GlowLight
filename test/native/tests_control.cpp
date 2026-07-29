@@ -49,6 +49,39 @@ class FakeMode : public AbstractMode {
   int activations = 0;
 };
 
+// A mode built like Static Light: its options are presets that write their result
+// into the registry. That is the shape that made a manually set colour bounce back.
+class PresetMode : public AbstractMode {
+ public:
+  PresetMode(LightService* light, DistanceService* distance,
+             CommunicationService* communication)
+      : AbstractMode(light, distance, communication) {
+    this->id = "preset";
+    this->title = "Preset";
+    this->description = "Presets that write settings";
+    this->version = "1.0.0";
+  }
+
+  void setup() override {
+    this->registry.init("color", RegistryType::COLOR, CRGB(255, 128, 20));
+    this->addOption("Warm", [this]() { this->apply(CRGB(255, 128, 20)); }, false, true);
+    this->addOption("Red", [this]() { this->apply(CRGB(240, 70, 70)); }, false, true);
+  }
+
+  void customFirst() override {}
+  void customLoop() override {}
+  void last() override {}
+  void customClick() override {}
+
+  int applications = 0;
+
+ private:
+  void apply(CRGB color) {
+    ++this->applications;
+    this->registry.setColor("color", color);
+  }
+};
+
 JsonDocument request(const char* operation, const char* mode = nullptr) {
   JsonDocument document;
   document["api"] = "glow.control/1";
@@ -106,6 +139,59 @@ struct Fixture {
 };
 
 }  // namespace
+
+// The bug: the preset ran again on the next loop and overwrote what was just set.
+GLOW_TEST(a_preset_does_not_overwrite_a_setting_changed_afterwards) {
+  Fixture fixture;
+  PresetMode preset{&fixture.light, &fixture.distance, &fixture.communication};
+  fixture.controller.addMode(&preset);
+  fixture.controller.executeControl(request("mode.select", "preset"));
+
+  JsonDocument set = request("mode.setting.set", "preset");
+  set["setting"] = "color";
+  set["value"] = "0000FF";
+  CHECK(fixture.controller.executeControl(set)["ok"].as<bool>());
+
+  for (int iteration = 0; iteration < 5; ++iteration) preset.loop();
+  CHECK(fixture.controller.state()["mode"]["registry"]["color"].as<String>() == "0000FF");
+}
+
+// The same overwrite on the receiving side: the synced state is authoritative, so
+// re-running the preset would undo exactly what arrived.
+GLOW_TEST(applying_group_state_does_not_rerun_a_preset) {
+  Fixture fixture;
+  PresetMode preset{&fixture.light, &fixture.distance, &fixture.communication};
+  fixture.controller.addMode(&preset);
+  fixture.controller.executeControl(request("mode.select", "preset"));
+
+  JsonDocument state;
+  state["id"] = "preset";
+  state["schemaVersion"] = 1;
+  state["registry"]["color"] = "0000FF";
+  state["registry"]["currentOption"] = 0;
+  state["registry"]["brightness"] = LED_DEFAULT_BRIGHTNESS;
+  CHECK(preset.deserialize(state));
+
+  for (int iteration = 0; iteration < 5; ++iteration) preset.loop();
+  CHECK(fixture.controller.state()["mode"]["registry"]["color"].as<String>() == "0000FF");
+}
+
+// Selecting a preset must have taken effect by the time the state is published,
+// or the group would receive the values the preset is about to replace.
+GLOW_TEST(a_selected_preset_is_applied_before_the_state_is_published) {
+  Fixture fixture;
+  PresetMode preset{&fixture.light, &fixture.distance, &fixture.communication};
+  fixture.controller.addMode(&preset);
+  fixture.controller.executeControl(request("mode.select", "preset"));
+
+  preset.applications = 0;
+  JsonDocument select = request("mode.option.set", "preset");
+  select["scope"] = "local";
+  select["option"] = 1;
+  CHECK(fixture.controller.executeControl(select)["ok"].as<bool>());
+  CHECK(fixture.controller.state()["mode"]["registry"]["color"].as<String>() == "F04646");
+  CHECK_EQ(preset.applications, 1);
+}
 
 GLOW_TEST(capabilities_are_derived_from_registered_modes) {
   Fixture fixture;

@@ -25,7 +25,7 @@ endif
 
 .PHONY: all build build-all build-profiles flash monitor run clean list \
         test test-native test-setup test-integration test-isolation test-security \
-        test-ota test-homeassistant flash-all
+        test-ota test-homeassistant flash-all flash-ota
 
 all: build
 
@@ -96,6 +96,14 @@ flash-all:
 		$(PLATFORMIO) run --target upload --environment $(BOARD) --upload-port $$port || exit 1; \
 	done; \
 	echo "Flashed: $$ports"
+
+# Same image over the network, for lamps that are not on USB:
+# make flash-ota HOSTS="glowlight-52877c.local glowlight-52c82c.local"
+# The lamp's OTA password comes from the GLOW_OTA_PASSWORD environment variable.
+flash-ota:
+	@if [ -z "$(HOSTS)" ]; then echo "Set HOSTS to one or more lamp hostnames"; exit 1; fi
+	python3 scripts/ota_push.py --firmware .pio/build/$(BOARD)/firmware.bin \
+		$(foreach host,$(HOSTS),--host $(host))
 
 # make flash        -> ohne --upload-port (auto-detect)
 # make flash 1      -> Upload auf /dev/ttyACM1

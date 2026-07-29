@@ -93,6 +93,7 @@ bool AbstractMode::nextOption() {
 
   this->optionChanged = true;
   this->optionCalled = false;
+  this->applyPresetOption();
 
   return this->options[this->currentOption].alert;
 }
@@ -106,6 +107,7 @@ bool AbstractMode::setOption(uint8_t option) {
 
   this->optionChanged = true;
   this->optionCalled = false;
+  this->applyPresetOption();
 
   return this->options[this->currentOption].alert;
 }
@@ -125,6 +127,20 @@ bool AbstractMode::callCurrentOption() {
   this->optionCalled = true;
 
   return true;
+}
+
+// A one-shot option is a preset: it writes its result into the registry and is then
+// done. It has to run at the moment it is chosen — on mode entry or on selection —
+// so that the state which gets published straight afterwards already carries its
+// values. Continuous options are driven by the loop and are left alone here.
+void AbstractMode::applyPresetOption() {
+  if (this->options.size() == 0 || this->currentOption >= this->options.size()) {
+    return;
+  }
+
+  if (!this->options[this->currentOption].onlyOnce) return;
+
+  this->callCurrentOption();
 }
 
 bool AbstractMode::recallCurrentOption() {
@@ -270,9 +286,11 @@ bool AbstractMode::deserialize(const JsonDocument& doc) {
   this->desiredBrightness = this->registry.getInt("brightness");
   this->onStateApplied();
 
-  // call the setup function of the derived class
   this->optionChanged = true;
-  this->optionCalled = false;
+  // The incoming state already carries the values a preset would produce, so
+  // running the current option again here would overwrite exactly what was just
+  // synchronised. Continuous options ignore this flag and keep running.
+  this->optionCalled = true;
 
   this->applyDesiredBrightness();
 
@@ -351,8 +369,12 @@ void AbstractMode::first(bool stateRestored) {
   this->applyDesiredBrightness();
   this->lightService->setLightUpdateSteps(LED_UPDATE_STEPS);
 
-  if (stateRestored) this->onStateActivated();
-  else this->customFirst();
+  if (stateRestored) {
+    this->onStateActivated();
+  } else {
+    this->customFirst();
+    this->applyPresetOption();
+  }
 }
 
 void AbstractMode::modeSetup() {

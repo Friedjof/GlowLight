@@ -28,6 +28,12 @@ class GlowRegistry {
     String CRGB2Hex(CRGB color);
     CRGB Hex2CRGB(String hex);
     bool isHexColor(const String& hex);
+    // Accepts the spellings a human or a UI actually produces — surrounding
+    // whitespace and a leading '#' — and returns the bare six hex digits, or an
+    // empty string when the value is not a colour. Normalising here rather than
+    // in one adapter means every path benefits: MQTT, the control API, the
+    // serial console and the ESP-NOW group sync.
+    String normalizeHexColor(const String& value);
     bool valueValid(const String& key, JsonVariantConst value);
     bool applyValue(const String& key, JsonVariantConst value);
 

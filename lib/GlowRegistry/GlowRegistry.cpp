@@ -59,6 +59,15 @@ CRGB GlowRegistry::Hex2CRGB(String hex) {
   return CRGB(strtol(r, NULL, 16), strtol(g, NULL, 16), strtol(b, NULL, 16));
 }
 
+String GlowRegistry::normalizeHexColor(const String& value) {
+  String candidate = value;
+  candidate.trim();
+  if (candidate.startsWith("#")) candidate = candidate.substring(1);
+  if (!this->isHexColor(candidate)) return String("");
+  candidate.toUpperCase();
+  return candidate;
+}
+
 bool GlowRegistry::isHexColor(const String& hex) {
   if (hex.length() != 6) return false;
   for (size_t i = 0; i < hex.length(); ++i) {
@@ -296,7 +305,7 @@ bool GlowRegistry::valueValid(const String& key, JsonVariantConst value) {
   if (type == RegistryType::STRING) return value.is<String>();
   if (type == RegistryType::BOOL) return value.is<bool>();
   if (type == RegistryType::COLOR) {
-    return value.is<String>() && this->isHexColor(value.as<String>());
+    return value.is<String>() && !this->normalizeHexColor(value.as<String>()).isEmpty();
   }
   return false;
 }
@@ -307,7 +316,8 @@ bool GlowRegistry::applyValue(const String& key, JsonVariantConst value) {
   if (type == RegistryType::STRING) return this->setString(key, value.as<String>());
   if (type == RegistryType::BOOL) return this->setBool(key, value.as<bool>());
   if (type == RegistryType::COLOR) {
-    return this->setColor(key, this->Hex2CRGB(value.as<String>()));
+    return this->setColor(key, this->Hex2CRGB(
+        this->normalizeHexColor(value.as<String>())));
   }
   return false;
 }

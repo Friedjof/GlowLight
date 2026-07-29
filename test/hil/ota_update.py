@@ -2,56 +2,22 @@
 """Hardware checks for authenticated OTA updates on one GlowLight lamp."""
 
 import argparse
-import os
-import re
-import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 from two_lamp_sync import Lamp, wait_until
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
+# The HTTP conversation is shared with the rollout tool, so a change to the OTA
+# endpoint cannot leave one of the two behind.
+from ota_push import read_password, request, update_page, upload  # noqa: E402
+
+
 DEFAULT_FIRMWARE = PROJECT_ROOT / ".pio/build/esp32c3-integration/firmware.bin"
-TOKEN_PATTERN = re.compile(r'name="token" value="([0-9a-f]{32})"')
-USERNAME = "glowlight"
-STATUS_MARKER = "\n__GLOW_HTTP_STATUS__"
-
-
-def request(url, password=None, arguments=None, check=True):
-    command = ["curl", "--silent", "--show-error"]
-    if password is not None:
-        command += ["--digest", "--user", f"{USERNAME}:{password}"]
-    if arguments:
-        command += arguments
-    command += ["--write-out", STATUS_MARKER + "%{http_code}", url]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if check and result.returncode != 0:
-        raise AssertionError(f"curl failed with exit code {result.returncode}")
-    body, marker, status = result.stdout.rpartition(STATUS_MARKER)
-    if not marker:
-        raise AssertionError("HTTP response did not contain a status marker")
-    return result.returncode, int(status), body
-
-
-def update_page(base_url, password):
-    _, status, page = request(f"{base_url}/update", password)
-    assert status == 200, f"authenticated update page returned HTTP {status}"
-    token = TOKEN_PATTERN.search(page)
-    assert token is not None, "authenticated update page had no one-time token"
-    return token.group(1)
-
-
-def upload(base_url, password, firmware, token=None, extra=None, check=True):
-    arguments = [] if extra is None else list(extra)
-    if token is not None:
-        arguments += ["--form", f"token={token}"]
-    arguments += [
-        "--form",
-        f"firmware=@{firmware};type=application/octet-stream",
-    ]
-    return request(f"{base_url}/api/ota", password, arguments, check)
 
 
 def assert_no_restart(lamp, boot_count, description):
@@ -66,9 +32,7 @@ def main():
     parser.add_argument("--firmware", type=Path, default=DEFAULT_FIRMWARE)
     args = parser.parse_args()
 
-    password = os.environ.get("GLOW_OTA_PASSWORD", "")
-    if not 12 <= len(password) <= 63:
-        raise SystemExit("Set GLOW_OTA_PASSWORD to the lamp's 12-63 character OTA password")
+    password = read_password()
     if not args.firmware.is_file():
         raise SystemExit(f"Firmware image does not exist: {args.firmware}")
 

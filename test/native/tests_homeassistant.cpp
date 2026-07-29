@@ -27,10 +27,30 @@ class ExtraMode : public AbstractMode {
   void setup() override {
     this->registry.init("shimmer", RegistryType::INT, 3, 1, 9);
     this->registry.init("frozen", RegistryType::BOOL, false);
+    this->registry.init("color", RegistryType::COLOR, CRGB(255, 128, 20));
     this->addOption("Shimmer", []() {}, false);
     this->addOption("Freeze", []() {}, false);
   }
 
+  void customFirst() override {}
+  void customLoop() override {}
+  void last() override {}
+  void customClick() override {}
+};
+
+// A mode that declares no colour at all.
+class PlainMode : public AbstractMode {
+ public:
+  PlainMode(LightService* light, DistanceService* distance,
+            CommunicationService* communication)
+      : AbstractMode(light, distance, communication) {
+    this->id = "plain";
+    this->title = "Plain";
+    this->description = "No colour anywhere";
+    this->version = "0.1.0";
+  }
+
+  void setup() override { this->registry.init("speed", RegistryType::INT, 2, 1, 4); }
   void customFirst() override {}
   void customLoop() override {}
   void last() override {}
@@ -331,6 +351,147 @@ GLOW_TEST(an_option_command_maps_the_option_name_to_its_index) {
   CHECK(request["operation"].as<String>() == "mode.option.set");
   CHECK_EQ(request["value"].isNull() ? request["option"].as<int>() : -1, 1);
   CHECK(lamp.controller.executeControl(request)["ok"].as<bool>());
+}
+
+// The whole path a colour takes from the Home Assistant text field: MQTT
+// command, mapping, controller and finally the registry.
+GLOW_TEST(a_colour_typed_without_a_hash_reaches_the_registry) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  JsonDocument request =
+      mapCommand(lamp, "glowlight/glow-42/setting/aurora/color/set", "00FF00", "local");
+  CHECK(request["operation"].as<String>() == "mode.setting.set");
+  CHECK(request["setting"].as<String>() == "color");
+  CHECK(lamp.controller.executeControl(request)["ok"].as<bool>());
+  CHECK_EQ(lamp.state()["mode"]["registry"]["color"].as<String>(), String("00FF00"));
+}
+
+// The spelling everyone types first. It used to be refused, and the state topic
+// immediately republished the old value, which looks like the field resetting.
+GLOW_TEST(a_colour_typed_with_a_hash_is_accepted_too) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  JsonDocument request =
+      mapCommand(lamp, "glowlight/glow-42/setting/aurora/color/set", "#00FF00", "local");
+  CHECK(lamp.controller.executeControl(request)["ok"].as<bool>());
+  CHECK_EQ(lamp.state()["mode"]["registry"]["color"].as<String>(), String("00FF00"));
+}
+
+GLOW_TEST(a_lowercase_colour_is_accepted_and_stored_normalised) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  JsonDocument request =
+      mapCommand(lamp, "glowlight/glow-42/setting/aurora/color/set", "00ff00", "local");
+  CHECK(lamp.controller.executeControl(request)["ok"].as<bool>());
+  CHECK_EQ(lamp.state()["mode"]["registry"]["color"].as<String>(), String("00FF00"));
+}
+
+GLOW_TEST(a_malformed_colour_is_still_refused) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  for (const char* bad : {"#FF80", "GGGGGG", "", "FF80140"}) {
+    JsonDocument request =
+        mapCommand(lamp, "glowlight/glow-42/setting/aurora/color/set", bad, "local");
+    CHECK(!lamp.controller.executeControl(request)["ok"].as<bool>());
+  }
+  CHECK_EQ(lamp.state()["mode"]["registry"]["color"].as<String>(), String("FF8014"));
+}
+
+// A colour belongs in the light card, not only in a text field nobody looks for.
+GLOW_TEST(the_light_entity_offers_a_colour_picker) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+
+  Captured captured;
+  CHECK(HomeAssistantProtocol::buildDiscovery(identity(), lamp.capabilities(),
+                                              captured.sink()));
+
+  JsonDocument light;
+  CHECK(deserializeJson(light, captured.at("homeassistant/light/glow-42/light/config")) ==
+        DeserializationError::Ok);
+  CHECK_EQ(light["supported_color_modes"].size(), static_cast<size_t>(2));
+  CHECK(light["supported_color_modes"][0].as<String>() == "rgb");
+  CHECK(light["supported_color_modes"][1].as<String>() == "brightness");
+}
+
+GLOW_TEST(the_light_state_reports_the_colour_of_the_active_mode) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  Captured captured;
+  CHECK(HomeAssistantProtocol::buildState(identity(), lamp.capabilities(), lamp.state(),
+                                          captured.sink()));
+
+  JsonDocument light;
+  CHECK(deserializeJson(light, captured.at("glowlight/glow-42/light/state")) ==
+        DeserializationError::Ok);
+  CHECK(light["color_mode"].as<String>() == "rgb");
+  CHECK_EQ(light["color"]["r"].as<int>(), 255);
+  CHECK_EQ(light["color"]["g"].as<int>(), 128);
+  CHECK_EQ(light["color"]["b"].as<int>(), 20);
+}
+
+// A mode without a colour must report brightness, otherwise Home Assistant shows
+// a picker that controls nothing.
+GLOW_TEST(a_mode_without_a_colour_reports_brightness_only) {
+  Lamp lamp;
+  PlainMode plain{&lamp.light, &lamp.distance, &lamp.communication};
+  lamp.controller.addMode(&plain);
+
+  JsonDocument select;
+  select["api"] = "glow.control/1";
+  select["operation"] = "mode.select";
+  select["target"]["mode"] = "plain";
+  CHECK(lamp.controller.executeControl(select)["ok"].as<bool>());
+
+  Captured captured;
+  CHECK(HomeAssistantProtocol::buildState(identity(), lamp.capabilities(), lamp.state(),
+                                          captured.sink()));
+
+  JsonDocument light;
+  CHECK(deserializeJson(light, captured.at("glowlight/glow-42/light/state")) ==
+        DeserializationError::Ok);
+  CHECK(light["color_mode"].as<String>() == "brightness");
+  CHECK(light["color"].isNull());
+}
+
+GLOW_TEST(a_colour_from_the_light_card_reaches_the_setting) {
+  Lamp lamp;
+  lamp.controller.addMode(&lamp.extra);
+  selectAurora(lamp);
+
+  JsonDocument request = mapCommand(
+      lamp, "glowlight/glow-42/light/set",
+      "{\"state\":\"ON\",\"color\":{\"r\":0,\"g\":255,\"b\":0}}", "local");
+  CHECK(request["operation"].as<String>() == "mode.setting.set");
+  CHECK(request["setting"].as<String>() == "color");
+  CHECK(request["value"].as<String>() == "00FF00");
+  CHECK(lamp.controller.executeControl(request)["ok"].as<bool>());
+  CHECK_EQ(lamp.state()["mode"]["registry"]["color"].as<String>(), String("00FF00"));
+}
+
+GLOW_TEST(a_colour_command_for_a_mode_without_a_colour_is_refused) {
+  Lamp lamp;
+  PlainMode plain{&lamp.light, &lamp.distance, &lamp.communication};
+  lamp.controller.addMode(&plain);
+
+  JsonDocument select;
+  select["api"] = "glow.control/1";
+  select["operation"] = "mode.select";
+  select["target"]["mode"] = "plain";
+  CHECK(lamp.controller.executeControl(select)["ok"].as<bool>());
+
+  CHECK(mapCommand(lamp, "glowlight/glow-42/light/set",
+                   "{\"color\":{\"r\":0,\"g\":255,\"b\":0}}", "local").isNull());
 }
 
 // A sync switch must carry the other control along, or it would reset it.

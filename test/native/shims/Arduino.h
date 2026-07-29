@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
 #include <cmath>
 #include <string>
@@ -92,6 +93,26 @@ class String {
     return position == std::string::npos ? -1 : static_cast<int>(position);
   }
   long toInt() const { return std::strtol(this->value_.c_str(), nullptr, 10); }
+  void trim() {
+    const char* whitespace = " \t\n\r\f\v";
+    size_t first = this->value_.find_first_not_of(whitespace);
+    if (first == std::string::npos) {
+      this->value_.clear();
+      return;
+    }
+    size_t last = this->value_.find_last_not_of(whitespace);
+    this->value_ = this->value_.substr(first, last - first + 1);
+  }
+  void toUpperCase() {
+    for (char& character : this->value_) {
+      character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+    }
+  }
+  void toLowerCase() {
+    for (char& character : this->value_) {
+      character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+    }
+  }
   void toCharArray(char* buffer, unsigned int length) const {
     if (buffer == nullptr || length == 0) return;
     std::snprintf(buffer, length, "%s", this->value_.c_str());
