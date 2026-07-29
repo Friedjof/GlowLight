@@ -10,21 +10,32 @@ A beautiful, smart bedside lamp with ESP-NOW wireless communication, gesture con
 
 - [✨ Features](#-features)
 - [🎭 Available Lighting Modes](#-available-lighting-modes)
-- [🚀 Quick Setup](#-quick-setup)
 - [📸 Gallery](#-gallery)
-- [🔗 Mesh Communication](#-mesh-communication-new)
+- [🔗 ESP-NOW Wireless Communication](#-esp-now-wireless-communication)
+  - [Configuration](#configuration)
+  - [🏠 Home Assistant](#-home-assistant)
 - [🔧 Hardware Components](#-hardware-components)
   - [Main Components](#main-components)
   - [3D Printing](#3d-printing)
   - [Soldering](#soldering)
+- [🚀 Quick Setup](#-quick-setup)
 - [📦 Software Installation (Advanced)](#-software-installation-advanced)
 - [👨‍💻 Development](#-development)
+  - [Project Structure](#project-structure)
+  - [Documentation](#documentation)
+  - [Testing](#testing)
+  - [Modes](#modes)
 - [📄 License](#-license)
 
 ## ✨ Features
 
 - **🎨 Multiple Lighting Modes**: Static colors, rainbow, beacon, candle effect, and more
 - **⚡ ESP-NOW Communication**: Ultra-fast (<10ms) wireless synchronization between lamps
+- **🔐 Encrypted Group Transport**: AES-256-GCM with a shared group key, authenticated peers and replay protection, up to 8 lamps per group
+- **🔀 Per-Lamp Sync Control**: Follow and publish are independent switches, so a lamp can go its own way and rejoin later
+- **🏠 Home Assistant**: Optional MQTT integration that announces its own entities, generated from the modes in the firmware
+- **📶 Optional WiFi**: Infrastructure WiFi alongside ESP-NOW, with a captive portal for provisioning without reflashing
+- **⬆️ Password-Protected OTA**: Firmware updates over WiFi with digest authentication and image verification
 - **👋 Gesture Control**: Hand proximity sensing with VL53L0X distance sensor
 - **🔘 Physical Controls**: Simple button interface for mode switching
 - **🏠 3D Printable**: Complete STL files for custom lamp housing
@@ -263,12 +274,12 @@ wget https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh && b
 
 1. **🔍 Checks system requirements** (Python 3.8+, Git)
 2. **📦 Installs dependencies** automatically for your OS (Ubuntu/Debian, Fedora, Arch, macOS)
-3. **📂 Downloads the GlowLight project** to `~/GlowLight`
+3. **📂 Downloads the GlowLight project** to `~/GlowLight` — unless you run the script from an existing checkout, which is then used as-is
 4. **🛠️ Launches the interactive setup system** with a beautiful menu interface
 
 ### Interactive Setup Features:
 
-- **⚙️ Project Configuration**: Set up mesh network and GPIO pins with guided wizards
+- **⚙️ Project Configuration**: Guided wizards for the group key, captive portal, OTA, WiFi, Home Assistant and GPIO pins
 - **🔨 Build & Flash**: Compile and upload firmware to your ESP32-C3 with one click
 - **📱 Device Management**: Automatic ESP32 device detection and management
 - **📺 Serial Monitor**: Real-time device monitoring with logging
@@ -300,19 +311,38 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 
 - `pio run`: Compiles the software
 - `pio run --environment esp32c3-all-modes`: Compiles and links every mode
+- `pio run --environment esp32c3-integration`: Build with the serial test console
 - `pio run --target upload`: Flashes the software to the ESP32C3
 - `pio run --target clean`: Removes compiled files
 - `pio device monitor`: Opens a terminal to view the ESP32C3 output
 
 ### Makefile Commands
 
+Building and flashing:
+
 - `make` or `make build`: Compiles the standard profile
 - `make build-all`: Compiles and links every mode
+- `make build-profiles`: Builds all three profiles and checks each fits an OTA slot
 - `make flash [device-number]`: Flashes the software to the ESP32-C3
+- `make flash-all`: Flashes every connected lamp with the same image — this is what puts them into one group
 - `make clean`: Removes compiled files
 - `make monitor [device-number]`: Opens the serial monitor
 - `make run [device-number]`: Flashes the software and opens the monitor
 - `make list`: Lists matching ESP32-C3 serial devices
+
+Testing without hardware:
+
+- `make test`: Everything that runs on the host, about a second
+- `make test-native`: Protocol, control API and configuration tests against the real firmware sources
+- `make test-setup`: Setup, group key handling and the host-side frame format
+
+Testing with hardware:
+
+- `make test-integration`: Group synchronization across all connected lamps
+- `make test-isolation`: Two lamps with different keys must ignore each other
+- `make test-security KEY=<64 hex>`: Replay and tampering checks against one lamp
+- `make test-ota PORT=… HOST=…`: Authenticated firmware update
+- `make test-homeassistant BROKER=… DEVICE=… PORT=…`: MQTT integration against a broker
 
 ### Libraries Used
 
@@ -321,16 +351,57 @@ If you're familiar with Nix-shell, you can use the [`shell.nix`](/shell.nix) fil
 - [`Adafruit_VL53L0X`](https://github.com/adafruit/Adafruit_VL53L0X) for the distance sensor
 - [`FastLED`](https://registry.platformio.org/libraries/fastled/FastLED) for LED control
 - [`ArduinoJson`](https://registry.platformio.org/libraries/bblanchon/ArduinoJson) for message serialization
-- **ESP-NOW** (built-in ESP32 library) for wireless communication
+- [`PubSubClient`](https://registry.platformio.org/libraries/knolleary/PubSubClient) for the optional MQTT connection
+- **ESP-NOW**, **WiFi**, **mDNS**, **WebServer**, **Preferences** and **Update** (built-in ESP32 libraries)
 
 For more details on the libraries, refer to the [`platformio.ini`](/platformio.ini) file.
 
 ## 👨‍💻 Development
 
-The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services, and the controller are implemented in separate files in the [`/lib`](/lib) folder.
+The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which wires the services together and contains the setup and loop functions. The modes, services, and the controller live in separate libraries under [`/lib`](/lib).
 
-The machine-readable mode capability document and transport-neutral JSON control
-surface are documented in [docs/control-api.md](docs/control-api.md).
+### Project Structure
+
+`Controller` sits between the modes and everything that talks to the outside
+world. It derives a machine-readable capability document from what the modes
+declare and offers one transport-neutral command surface, so an adapter never
+needs to know about a specific mode.
+
+| Library | Responsibility |
+|---|---|
+| `Controller` | Mode lifecycle, capability document, `glow.control/1` operations, group synchronization policy |
+| `AbstractMode`, `GlowRegistry` | Base class for modes; typed settings with bounds and defaults that everything else is generated from |
+| `LightService`, `DistanceService` | LED output and the VL53L0X proximity sensor |
+| `CommunicationService` | Encrypted ESP-NOW transport: handshake, replay protection, fragmentation |
+| `NetworkService` | Owns the shared radio: WiFi state machine, fallback channel, mDNS |
+| `ConfigService` | Validated device configuration and its persistence in NVS |
+| `CaptivePortalService` | WPA2 setup access point for provisioning without reflashing |
+| `OtaService` | Password-protected firmware updates over WiFi |
+| `HomeAssistantService` | MQTT adapter; the pure mapping lives in `HomeAssistantProtocol` |
+
+Adding a mode does not touch any of the services: declare its options and
+registry keys as before, register it in `src/ModeRegistration.cpp`, and it shows
+up in the control API and in Home Assistant on its own.
+
+### Documentation
+
+- [Control API](docs/control-api.md) — capability document and JSON command surface
+- [Configuration](docs/configuration.md) — provisioning, NVS persistence, captive portal
+- [Security](docs/security.md) — threat model, key handling, migration from older firmware
+- [Home Assistant](docs/home-assistant.md) — MQTT integration, topics, entity generation
+- [OTA Updates](docs/ota.md) — upload procedure and security boundary
+- [Technical Diagrams](docs/diagrams.md) — architecture and flow diagrams
+
+### Testing
+
+`make test` runs everything that needs no hardware. The protocol tests compile
+the real `CommunicationService` on the host against thin shims for Arduino,
+ESP-NOW, FreeRTOS and mbedTLS, and drive it with frames built by an independent
+implementation — so the firmware and the test oracle cannot drift apart quietly.
+
+The hardware runners in [`test/hil`](/test/hil) cover group synchronization,
+group isolation, replay and tampering, OTA and the Home Assistant integration.
+See [test/README](/test/README) for what each one checks and what it needs.
 
 ### Technical Diagrams
 
@@ -353,6 +424,25 @@ Every mode is a class that inherits from the `AbstractMode` class. The abstract 
 - `customLoop`: This function is called every loop iteration.
 - `last`: This function is called once when the mode is removed from the controller.
 - `customClick`: This function is called when a double click is detected from the button.
+
+The constructor sets `title` for display and `id` as the stable protocol
+identifier. The ID appears in group messages, in the control API and in MQTT
+topics, so it must not change once lamps are in the field; the display name may.
+
+Everything a mode declares in `setup` is what the rest of the system works from:
+
+- `registry.init(key, type, default, min, max)` defines a setting. Its type and
+  bounds become validation for remote changes and, in Home Assistant, a number,
+  a switch or a text field.
+- `addOption(title, callback)` registers an option, which becomes a selectable
+  entry both on the button and in the control API.
+- `declareCommand(name, arguments)` exposes a mode-specific action that peers and
+  adapters may invoke.
+
+Optional hooks exist for modes that need to react to state arriving from
+elsewhere: `onStateApplied` after a complete state was adopted,
+`onSettingChanged` for a single value, and `onStateActivated` when the mode
+becomes active with restored state. Simple modes need none of them.
 
 ## 📄 License
 

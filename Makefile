@@ -72,7 +72,8 @@ test-security:
 	python3 test/hil/secure_transport.py --key $(KEY)
 
 # Authenticated firmware update against a lamp on the infrastructure WiFi:
-# make test-ota PORT=/dev/ttyACM0 HOST=glowlight.local
+# make test-ota PORT=/dev/ttyACM0 HOST=glowlight-52c82c.local
+# The hostname carries a per-lamp suffix; the lamp logs it as 'Reachable as ...'.
 # The lamp's OTA password comes from the GLOW_OTA_PASSWORD environment variable.
 test-ota:
 	python3 test/hil/ota_update.py --port $(PORT) --host $(HOST)

@@ -13,6 +13,13 @@ build-time configuration.
 The `glow.config` schema contains:
 
 - infrastructure WiFi enabled state, SSID, password and hostname
+
+Lamps are usually flashed from one shared configuration, so a hostname left at its
+default is not unique. Each lamp therefore appends the last three bytes of its MAC,
+giving names like `glowlight-52c82c`. It announces the result as
+`Reachable as <name>.local`, and that name is also the device name in Home Assistant.
+A hostname entered in the captive portal belongs to that one lamp and is used as
+given.
 - ESP-NOW fallback channel
 - secure group communication enabled state and 256-bit group key
 - default `follow` and `publish` synchronization policy

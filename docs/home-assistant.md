@@ -27,8 +27,17 @@ rejected by the configuration validator rather than silently ignored.
 
 ## What appears
 
-Every lamp becomes one device. The entities are generated from what the modes
-declare, so a firmware with more modes simply offers more entities:
+Every lamp becomes one device, identified by `glow-<node id>`, which is derived
+from its MAC. Device id, base topic, MQTT client id and every entity id are
+therefore unique even though all lamps are flashed from the same configuration.
+
+The device **name** follows the hostname, which for the same reason gets the last
+three MAC bytes appended unless you named the lamp yourself in the portal. So the
+lamps appear as `glowlight-52c82c`, `glowlight-9d6fc0` and so on. Rename them in
+Home Assistant to whatever suits the room; that only changes the display name.
+
+The entities are generated from what the modes declare, so a firmware with more
+modes simply offers more entities:
 
 | Entity | Comes from |
 |---|---|

@@ -147,10 +147,12 @@ MQTT layer knows nothing about still appears with its options and settings.
 
 ```bash
 export GLOW_OTA_PASSWORD=<the lamp's OTA password>
-make test-ota PORT=/dev/ttyACM0 HOST=glowlight.local
+make test-ota PORT=/dev/ttyACM0 HOST=glowlight-52c82c.local
 ```
 
-Needs one lamp with OTA enabled and reachable over the infrastructure WiFi. It
+Needs one lamp with OTA enabled and reachable over the infrastructure WiFi. Each
+lamp derives its own hostname, so take the name from its `Reachable as <name>.local`
+log line rather than assuming `glowlight.local`. It
 checks that the update page and the upload endpoint refuse unauthenticated and
 wrongly authenticated requests, that a truncated or foreign image is rejected
 and leaves the running firmware bootable, and that a valid image installs and
