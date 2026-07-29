@@ -4,7 +4,10 @@ Configuration Manager
 Handles GlowConfig.h creation, modification, and template management.
 """
 
+import getpass
 import os
+import re
+import secrets
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -37,7 +40,8 @@ class ConfigManager:
         self.validator = ConfigValidator()
         
         # Ensure backup directory exists
-        self.backup_dir.mkdir(exist_ok=True)
+        self.backup_dir.mkdir(mode=0o700, exist_ok=True)
+        os.chmod(self.backup_dir, 0o700)
         
     def config_exists(self):
         """Check if configuration file exists."""
@@ -72,6 +76,7 @@ class ConfigManager:
                 
             # Copy template to config
             shutil.copy2(self.template_path, self.config_path)
+            os.chmod(self.config_path, 0o600)
             ASCIIArt.show_success("Configuration file created from template!")
             return True
             
@@ -91,7 +96,11 @@ class ConfigManager:
             default=True
         )
         
-        communication_config = {'MESH_ON': enabled}
+        communication_config = {
+            'MESH_ON': enabled,
+            'GLOW_SYNC_FOLLOW_DEFAULT': enabled,
+            'GLOW_SYNC_PUBLISH_DEFAULT': enabled,
+        }
         
         if enabled:
             while True:
@@ -103,12 +112,167 @@ class ConfigManager:
                     ASCIIArt.show_error("Please enter a number between 1 and 13")
                     continue
 
+                group_key = self._provision_group_key()
+                communication_config['GLOW_GROUP_KEY_HEX'] = group_key
+                communication_config['GLOW_MAX_GROUP_NODES'] = self.validator.MAX_GROUP_NODES
+
                 if self.validator.validate_communication_config(communication_config):
+                    ASCIIArt.show_info(
+                        "Group key: " + self.validator.format_group_key(group_key)
+                    )
                     break
         else:
             ASCIIArt.show_info("Wireless synchronization disabled")
             
         return communication_config
+
+    def configure_portal(self):
+        """Configure the physically activated captive portal."""
+        ASCIIArt.show_separator("Captive Portal Configuration")
+        enabled = self._ask_yes_no(
+            "\n🌐 Enable the setup portal when the button is held during boot?",
+            default=False,
+        )
+        portal_config = {'GLOW_PORTAL_ENABLED': enabled}
+        if enabled:
+            password = secrets.token_urlsafe(12)
+            portal_config['GLOW_PORTAL_PASSWORD'] = password
+            if not self.validator.validate_portal_config(portal_config):
+                return None
+            ASCIIArt.show_warning(
+                "Portal password (shown once; store it securely): " + password
+            )
+        return portal_config
+
+    def configure_ota(self):
+        """Configure password-protected firmware updates over WiFi."""
+        ASCIIArt.show_separator("OTA Configuration")
+        enabled = self._ask_yes_no(
+            "\n⬆️  Enable firmware updates over infrastructure WiFi?",
+            default=False,
+        )
+        ota_config = {'GLOW_OTA_ENABLED': enabled}
+        if enabled:
+            password = secrets.token_urlsafe(16)
+            ota_config['GLOW_OTA_PASSWORD'] = password
+            if not self.validator.validate_ota_config(ota_config):
+                return None
+            ASCIIArt.show_warning(
+                "OTA username: glowlight\n"
+                "OTA password (shown once; store it securely): " + password
+            )
+        return ota_config
+
+    def _current_define_is_true(self, key):
+        """Read a boolean define from the configuration currently on disk.
+
+        _extract_define_value only understands numbers, so the boolean is read
+        directly here.
+        """
+        try:
+            if not self.config_path.exists():
+                return False
+            content = self.config_path.read_text()
+        except (OSError, AttributeError):
+            return False
+        match = re.search(rf'^#define\s+{key}\s+(true|false)\b', content, re.MULTILINE)
+        return match is not None and match.group(1) == 'true'
+
+    def configure_wifi(self):
+        """Configure the infrastructure WiFi connection."""
+        ASCIIArt.show_separator("WiFi Configuration")
+        print("\n📶 Infrastructure WiFi is needed for Home Assistant and OTA updates.")
+        print("   All lamps of a group must join the same access point, because")
+        print("   ESP-NOW and WiFi share one radio channel.")
+
+        enabled = self._ask_yes_no(
+            "\n📶 Connect this lamp to your WiFi?",
+            default=False,
+        )
+        while True:
+            wifi_config = {'WIFI_ON': enabled}
+            if enabled:
+                wifi_config['WIFI_SSID'] = input("📡 WiFi SSID: ").strip()
+                wifi_config['WIFI_PASSWORD'] = getpass.getpass(
+                    "🔑 WiFi password (empty for an open network): "
+                )
+            wifi_config['GLOW_HOSTNAME'] = input(
+                "🏷️  Hostname [glowlight]: "
+            ).strip() or "glowlight"
+
+            if self.validator.validate_wifi_config(wifi_config):
+                return wifi_config
+
+    def configure_mqtt(self, wifi_enabled=None):
+        """Configure the Home Assistant connection over an MQTT broker.
+
+        Args:
+            wifi_enabled: Whether infrastructure WiFi is on. Home Assistant
+                cannot work without it, and a configuration that enables both
+                MQTT and no WiFi is rejected by the firmware as a whole.
+        """
+        ASCIIArt.show_separator("Home Assistant Configuration")
+
+        if wifi_enabled is None:
+            wifi_enabled = self._current_define_is_true('WIFI_ON')
+        if not wifi_enabled:
+            ASCIIArt.show_warning(
+                "Home Assistant needs infrastructure WiFi, which is switched off.\n"
+                "Enable WiFi first; leaving Home Assistant disabled for now."
+            )
+            return {'GLOW_MQTT_ENABLED': False}
+
+        enabled = self._ask_yes_no(
+            "\n🏠 Publish this lamp to Home Assistant over MQTT?",
+            default=False,
+        )
+        mqtt_config = {'GLOW_MQTT_ENABLED': enabled}
+        if not enabled:
+            return mqtt_config
+
+        while True:
+            mqtt_config['GLOW_MQTT_HOST'] = input(
+                "🖧  Broker host (for example mqtt.local): "
+            ).strip()
+            port = input("🔌 Broker port [1883]: ").strip() or "1883"
+            mqtt_config['GLOW_MQTT_PORT'] = int(port) if port.isdigit() else 0
+            mqtt_config['GLOW_MQTT_USER'] = input(
+                "👤 Broker username (empty for anonymous): "
+            ).strip()
+            mqtt_config['GLOW_MQTT_PASSWORD'] = getpass.getpass(
+                "🔑 Broker password (empty for none): "
+            )
+            mqtt_config['GLOW_MQTT_DISCOVERY_PREFIX'] = input(
+                "🔎 Discovery prefix [homeassistant]: "
+            ).strip() or "homeassistant"
+
+            if self.validator.validate_mqtt_config(mqtt_config):
+                return mqtt_config
+
+    def _provision_group_key(self):
+        """Create a group key or securely collect one for an existing group."""
+        while True:
+            action = input(
+                "🔐 Create a new group or join an existing group? [C/j]: "
+            ).strip().lower()
+
+            if action in ('', 'c', 'create'):
+                return secrets.token_hex(32)
+
+            if action in ('j', 'join'):
+                entered_key = getpass.getpass(
+                    "🔑 Existing group key (exactly 64 hex characters): "
+                )
+                normalized = self.validator.normalize_group_key(entered_key)
+                if normalized is not None:
+                    return normalized
+                ASCIIArt.show_error(
+                    "Invalid group key. Enter exactly 64 hexadecimal characters; "
+                    "all-zero and default keys are not allowed."
+                )
+                continue
+
+            ASCIIArt.show_error("Please enter 'c' to create or 'j' to join")
         
     def configure_pins(self):
         """Configure GPIO pin assignments."""
@@ -205,6 +369,7 @@ class ConfigManager:
             # Write updated config
             with open(self.config_path, 'w') as f:
                 f.write(content)
+            os.chmod(self.config_path, 0o600)
                 
             ASCIIArt.show_success("Configuration applied successfully!")
             return True
@@ -223,6 +388,7 @@ class ConfigManager:
         backup_path = self.backup_dir / backup_name
         
         shutil.copy2(self.config_path, backup_path)
+        os.chmod(backup_path, 0o600)
         ASCIIArt.show_info(f"Backup created: {backup_path}")
         
     def _get_current_pins(self):
@@ -296,9 +462,66 @@ class ConfigManager:
             
         return response in ['y', 'yes']
         
+    # Minimum length for the defines that hold a password. Everything else that
+    # is a string only has to survive quoting.
+    PASSWORD_MINIMUMS = {
+        'GLOW_PORTAL_PASSWORD': 8,
+        'GLOW_OTA_PASSWORD': 12,
+    }
+
+    # Defines the setup may add to a configuration that predates them. A test
+    # keeps this in sync with include/GlowConfig.h-template.
+    KNOWN_DEFINES = frozenset({
+        'MESH_ON', 'ESPNOW_CHANNEL', 'GLOW_GROUP_KEY_HEX', 'GLOW_MAX_GROUP_NODES',
+        'GLOW_SYNC_FOLLOW_DEFAULT', 'GLOW_SYNC_PUBLISH_DEFAULT',
+        'WIFI_ON', 'WIFI_SSID', 'WIFI_PASSWORD', 'GLOW_HOSTNAME',
+        'GLOW_PORTAL_ENABLED', 'GLOW_PORTAL_PASSWORD',
+        'GLOW_OTA_ENABLED', 'GLOW_OTA_PASSWORD',
+        'GLOW_MQTT_ENABLED', 'GLOW_MQTT_HOST', 'GLOW_MQTT_PORT',
+        'GLOW_MQTT_USER', 'GLOW_MQTT_PASSWORD', 'GLOW_MQTT_DISCOVERY_PREFIX',
+    })
+
+    def _render_define_value(self, key, value):
+        """Render a Python value as a C preprocessor token.
+
+        The decision follows the type of the value, not the name of the define:
+        a string is always quoted. Deciding by name meant every new string
+        setting had to be remembered here, and the MQTT broker host went into
+        the header bare until it broke the build.
+        """
+        if isinstance(value, bool):
+            return "true" if value else "false"
+
+        if key == 'GLOW_GROUP_KEY_HEX':
+            normalized = self.validator.normalize_group_key(value)
+            if normalized is None:
+                raise ConfigurationError("Refusing to write an invalid group key")
+            return f'"{normalized}"'
+
+        if isinstance(value, int):
+            return str(value)
+
+        if not isinstance(value, str):
+            raise ConfigurationError(
+                f"Refusing to write {key}: unsupported value type "
+                f"{type(value).__name__}"
+            )
+
+        if any(character in value for character in '"\\\n\r'):
+            raise ConfigurationError(
+                f"Refusing to write {key}: value contains characters that "
+                "cannot be quoted"
+            )
+
+        minimum = self.PASSWORD_MINIMUMS.get(key)
+        if minimum is not None and not minimum <= len(value) <= 63:
+            raise ConfigurationError(f"Refusing to write an invalid {key}")
+
+        return f'"{value}"'
+
     def _update_define(self, content, key, value):
         """Update a #define statement in content.
-        
+
         Args:
             content: File content string
             key: Define key
@@ -307,19 +530,48 @@ class ConfigManager:
         Returns:
             str: Updated content
         """
-        import re
-        
-        # Handle boolean values
-        if isinstance(value, bool):
-            value = "true" if value else "false"
-            
+        rendered = self._render_define_value(key, value)
+
         pattern = rf'^(#define\s+{key}\s+).*$'
-        
+
         # Use a lambda function to avoid issues with numeric backreferences
         def replacement_func(match):
-            return match.group(1) + str(value)
-        
-        return re.sub(pattern, replacement_func, content, flags=re.MULTILINE)
+            return match.group(1) + rendered
+
+        updated_content, replacements = re.subn(
+            pattern, replacement_func, content, flags=re.MULTILINE
+        )
+        if replacements == 0 and key in self.KNOWN_DEFINES:
+            separator = '' if updated_content.endswith('\n') else '\n'
+            return f"{updated_content}{separator}#define {key} {rendered}\n"
+        return updated_content
+
+    # Every define holding a secret. Anything listed here is blanked before a
+    # configuration is printed or shown from a backup.
+    SECRET_DEFINES = (
+        'WIFI_PASSWORD',
+        'GLOW_PORTAL_PASSWORD',
+        'GLOW_OTA_PASSWORD',
+        'GLOW_MQTT_PASSWORD',
+    )
+
+    def redact_config_content(self, content):
+        """Redact the group key and every password before displaying a config."""
+        pattern = r'^(#define\s+GLOW_GROUP_KEY_HEX\s+)"?([^"\s]+)"?.*$'
+
+        def replacement(match):
+            safe_value = self.validator.format_group_key(match.group(2))
+            return match.group(1) + f'"{safe_value}"'
+
+        redacted = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+        for define in self.SECRET_DEFINES:
+            redacted = re.sub(
+                rf'^(#define\s+{define}\s+)"?[^"]*"?.*$',
+                r'\1"<redacted>"',
+                redacted,
+                flags=re.MULTILINE,
+            )
+        return redacted
         
     def _extract_define_value(self, content, key):
         """Extract value from #define statement.

@@ -5,9 +5,11 @@ Handles git-related operations like .gitignore management.
 """
 
 import os
+import re
 from pathlib import Path
 
 from core.error_handler import ErrorHandler
+from core.validator import ConfigValidator
 from ui.ascii_art_fixed import ASCIIArt
 
 
@@ -134,6 +136,7 @@ class GitManager:
             # Write backup
             with open(backup_path, 'w') as f:
                 f.write(content)
+            os.chmod(backup_path, 0o600)
                 
             ASCIIArt.show_info(f"Backup created: {backup_path}")
             return str(backup_path)
@@ -262,8 +265,26 @@ class ProjectStructureValidator:
                 "BUTTON_PIN", 
                 "DISTANCE_SENSOR_SDA",
                 "DISTANCE_SENSOR_SCL",
+                "WIFI_ON",
+                "WIFI_SSID",
+                "WIFI_PASSWORD",
+                "GLOW_HOSTNAME",
                 "MESH_ON",
+                "GLOW_SYNC_FOLLOW_DEFAULT",
+                "GLOW_SYNC_PUBLISH_DEFAULT",
+                "GLOW_PORTAL_ENABLED",
+                "GLOW_PORTAL_PASSWORD",
+                "GLOW_OTA_ENABLED",
+                "GLOW_OTA_PASSWORD",
+                "GLOW_MQTT_ENABLED",
+                "GLOW_MQTT_HOST",
+                "GLOW_MQTT_PORT",
+                "GLOW_MQTT_USER",
+                "GLOW_MQTT_PASSWORD",
+                "GLOW_MQTT_DISCOVERY_PREFIX",
                 "ESPNOW_CHANNEL",
+                "GLOW_GROUP_KEY_HEX",
+                "GLOW_MAX_GROUP_NODES",
                 "GLOW_NODE_TIMEOUT",
                 "HARTBEAT_INTERVAL",
                 "LEVEL_UPDATE_INTERVAL"
@@ -272,6 +293,101 @@ class ProjectStructureValidator:
             for define in required_defines:
                 if f"#define {define}" not in content:
                     ASCIIArt.show_error(f"Template missing: #define {define}")
+                    return False
+
+            mesh_match = re.search(
+                r'^#define\s+MESH_ON\s+(true|false)\b', content, re.MULTILINE
+            )
+            channel_match = re.search(
+                r'^#define\s+ESPNOW_CHANNEL\s+(\d+)\b', content, re.MULTILINE
+            )
+            follow_match = re.search(
+                r'^#define\s+GLOW_SYNC_FOLLOW_DEFAULT\s+(true|false)\b',
+                content,
+                re.MULTILINE,
+            )
+            publish_match = re.search(
+                r'^#define\s+GLOW_SYNC_PUBLISH_DEFAULT\s+(true|false)\b',
+                content,
+                re.MULTILINE,
+            )
+            max_nodes_match = re.search(
+                r'^#define\s+GLOW_MAX_GROUP_NODES\s+(\d+)\b', content, re.MULTILINE
+            )
+            key_match = re.search(
+                r'^#define\s+GLOW_GROUP_KEY_HEX\s+"([^"]*)"\s*$',
+                content,
+                re.MULTILINE,
+            )
+            portal_enabled_match = re.search(
+                r'^#define\s+GLOW_PORTAL_ENABLED\s+(true|false)\b',
+                content,
+                re.MULTILINE,
+            )
+            portal_password_match = re.search(
+                r'^#define\s+GLOW_PORTAL_PASSWORD\s+"([^"]*)"\s*$',
+                content,
+                re.MULTILINE,
+            )
+            ota_enabled_match = re.search(
+                r'^#define\s+GLOW_OTA_ENABLED\s+(true|false)\b',
+                content,
+                re.MULTILINE,
+            )
+            ota_password_match = re.search(
+                r'^#define\s+GLOW_OTA_PASSWORD\s+"([^\"]*)"\s*$',
+                content,
+                re.MULTILINE,
+            )
+
+            if not mesh_match:
+                ASCIIArt.show_error("Template has an invalid MESH_ON value")
+                return False
+            if not follow_match or not publish_match:
+                ASCIIArt.show_error("Template has invalid sync policy defaults")
+                return False
+            if not channel_match or not 1 <= int(channel_match.group(1)) <= 13:
+                ASCIIArt.show_error("Template ESPNOW_CHANNEL must be between 1 and 13")
+                return False
+            if (not max_nodes_match or
+                    int(max_nodes_match.group(1)) != ConfigValidator.MAX_GROUP_NODES):
+                ASCIIArt.show_error(
+                    f"Template GLOW_MAX_GROUP_NODES must be {ConfigValidator.MAX_GROUP_NODES}"
+                )
+                return False
+            if not key_match:
+                ASCIIArt.show_error("Template GLOW_GROUP_KEY_HEX must be a quoted C string")
+                return False
+            if not portal_enabled_match or not portal_password_match:
+                ASCIIArt.show_error("Template has invalid captive portal settings")
+                return False
+            if portal_enabled_match.group(1) == 'true' and not ConfigValidator().validate_portal_config({
+                    'GLOW_PORTAL_ENABLED': True,
+                    'GLOW_PORTAL_PASSWORD': portal_password_match.group(1),
+            }):
+                ASCIIArt.show_error("Template has unsafe captive portal settings")
+                return False
+            if not ota_enabled_match or not ota_password_match:
+                ASCIIArt.show_error("Template has invalid OTA settings")
+                return False
+            if ota_enabled_match.group(1) == 'true' and not ConfigValidator().validate_ota_config({
+                    'GLOW_OTA_ENABLED': True,
+                    'GLOW_OTA_PASSWORD': ota_password_match.group(1),
+            }):
+                ASCIIArt.show_error("Template has unsafe OTA settings")
+                return False
+
+            if mesh_match.group(1) == 'true':
+                communication_config = {
+                    'MESH_ON': True,
+                    'GLOW_SYNC_FOLLOW_DEFAULT': follow_match.group(1) == 'true',
+                    'GLOW_SYNC_PUBLISH_DEFAULT': publish_match.group(1) == 'true',
+                    'ESPNOW_CHANNEL': int(channel_match.group(1)),
+                    'GLOW_GROUP_KEY_HEX': key_match.group(1),
+                    'GLOW_MAX_GROUP_NODES': int(max_nodes_match.group(1)),
+                }
+                if not ConfigValidator().validate_communication_config(communication_config):
+                    ASCIIArt.show_error("Template has invalid mesh configuration")
                     return False
                     
             return True

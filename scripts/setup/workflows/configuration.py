@@ -152,9 +152,33 @@ class ConfigurationWorkflow:
         if communication_config is None:
             ASCIIArt.show_error("ESP-NOW configuration cancelled")
             return
-            
+
+        print("\n" + "🌐" + " "*20 + "STEP 2: Captive Portal" + " "*22)
+        portal_config = self.config_manager.configure_portal()
+        if portal_config is None:
+            ASCIIArt.show_error("Captive portal configuration cancelled")
+            return
+
+        print("\n" + "⬆️" + " "*20 + "STEP 3: OTA Updates" + " "*24)
+        ota_config = self.config_manager.configure_ota()
+        if ota_config is None:
+            ASCIIArt.show_error("OTA configuration cancelled")
+            return
+
+        print("\n" + "📶" + " "*20 + "STEP 4: WiFi Configuration" + " "*18)
+        wifi_config = self.config_manager.configure_wifi()
+        if wifi_config is None:
+            ASCIIArt.show_error("WiFi configuration cancelled")
+            return
+
+        print("\n" + "🏠" + " "*20 + "STEP 5: Home Assistant" + " "*22)
+        mqtt_config = self.config_manager.configure_mqtt(wifi_config['WIFI_ON'])
+        if mqtt_config is None:
+            ASCIIArt.show_error("Home Assistant configuration cancelled")
+            return
+
         # Configure GPIO pins
-        print("\n" + "📟" + " "*20 + "STEP 2: GPIO Pin Configuration" + " "*18)
+        print("\n" + "📟" + " "*20 + "STEP 6: GPIO Pin Configuration" + " "*18)
         pin_config = self.config_manager.configure_pins()
         
         if pin_config is None:
@@ -162,8 +186,10 @@ class ConfigurationWorkflow:
             return
             
         # Apply configuration
-        print("\n" + "💾" + " "*20 + "STEP 3: Applying Configuration" + " "*19)
-        if self.config_manager.apply_configuration(communication_config, pin_config):
+        print("\n" + "💾" + " "*20 + "STEP 7: Applying Configuration" + " "*19)
+        runtime_config = {**communication_config, **portal_config, **ota_config,
+                          **wifi_config, **mqtt_config}
+        if self.config_manager.apply_configuration(runtime_config, pin_config):
             ASCIIArt.show_success("🎉 Configuration created successfully!")
             print("\n📋 Your GlowLight is now configured and ready to build!")
         else:
@@ -186,12 +212,16 @@ class ConfigurationWorkflow:
             print("🔧 MODIFICATION MENU")
             print("="*40)
             print("[1]  Modify ESP-NOW Settings")
-            print("[2]  Modify GPIO Pins")
-            print("[3]  Complete Reconfiguration")
-            print("[4]  Return to Configuration Menu")
+            print("[2]  Modify Captive Portal")
+            print("[3]  Modify GPIO Pins")
+            print("[4]  Modify OTA Settings")
+            print("[5]  Modify WiFi Settings")
+            print("[6]  Modify Home Assistant Settings")
+            print("[7]  Complete Reconfiguration")
+            print("[8]  Return to Configuration Menu")
             print("="*40)
             
-            choice = input("\n🎯 Select option (1-4): ").strip()
+            choice = input("\n🎯 Select option (1-8): ").strip()
             
             if choice == '1':
                 communication_config = self.config_manager.configure_esp_now()
@@ -199,15 +229,35 @@ class ConfigurationWorkflow:
                     self.config_manager.apply_configuration(communication_config, {})
                     
             elif choice == '2':
+                portal_config = self.config_manager.configure_portal()
+                if portal_config:
+                    self.config_manager.apply_configuration(portal_config, {})
+
+            elif choice == '3':
                 pin_config = self.config_manager.configure_pins()
                 if pin_config:
                     self.config_manager.apply_configuration({}, pin_config)
-                    
-            elif choice == '3':
+
+            elif choice == '4':
+                ota_config = self.config_manager.configure_ota()
+                if ota_config:
+                    self.config_manager.apply_configuration(ota_config, {})
+
+            elif choice == '5':
+                wifi_config = self.config_manager.configure_wifi()
+                if wifi_config:
+                    self.config_manager.apply_configuration(wifi_config, {})
+
+            elif choice == '6':
+                mqtt_config = self.config_manager.configure_mqtt()
+                if mqtt_config:
+                    self.config_manager.apply_configuration(mqtt_config, {})
+
+            elif choice == '7':
                 self._create_new_config()
                 break
-                
-            elif choice == '4':
+
+            elif choice == '8':
                 break
                 
             else:
@@ -243,7 +293,7 @@ class ConfigurationWorkflow:
                 print("\n" + "="*60)
                 print("📄 Complete GlowConfig.h:")
                 print("="*60)
-                print(content)
+                print(self.config_manager.redact_config_content(content))
                 print("="*60)
                 
         except Exception as e:
@@ -263,8 +313,22 @@ class ConfigurationWorkflow:
             ('BUTTON_PIN', 'Button Pin'),
             ('DISTANCE_SENSOR_SDA', 'Distance Sensor SDA'),
             ('DISTANCE_SENSOR_SCL', 'Distance Sensor SCL'),
+            ('WIFI_ON', 'Infrastructure WiFi'),
+            ('WIFI_SSID', 'WiFi SSID'),
+            ('GLOW_HOSTNAME', 'Hostname'),
             ('MESH_ON', 'ESP-NOW Synchronization'),
+            ('GLOW_SYNC_FOLLOW_DEFAULT', 'Follow Group by Default'),
+            ('GLOW_SYNC_PUBLISH_DEFAULT', 'Publish to Group by Default'),
             ('ESPNOW_CHANNEL', 'ESP-NOW WiFi Channel'),
+            ('GLOW_GROUP_KEY_HEX', 'Group Key'),
+            ('GLOW_MAX_GROUP_NODES', 'Maximum Group Nodes'),
+            ('GLOW_PORTAL_ENABLED', 'Captive Portal'),
+            ('GLOW_PORTAL_PASSWORD', 'Portal Password'),
+            ('GLOW_OTA_ENABLED', 'OTA Updates'),
+            ('GLOW_MQTT_ENABLED', 'Home Assistant'),
+            ('GLOW_MQTT_HOST', 'MQTT Broker'),
+            ('GLOW_MQTT_PORT', 'MQTT Port'),
+            ('GLOW_OTA_PASSWORD', 'OTA Password'),
         ]
         
         for define_name, display_name in important_settings:
@@ -273,6 +337,10 @@ class ConfigurationWorkflow:
             
             if match:
                 value = match.group(1).strip()
+                if define_name == 'GLOW_GROUP_KEY_HEX':
+                    value = self.config_manager.validator.format_group_key(value.strip('"'))
+                elif define_name in ('GLOW_PORTAL_PASSWORD', 'GLOW_OTA_PASSWORD'):
+                    value = '<redacted>'
                 print(f"  {display_name}: {value}")
             else:
                 print(f"  {display_name}: (not found)")
@@ -398,6 +466,7 @@ class ConfigurationWorkflow:
                     try:
                         with open(backup_file, 'r') as f:
                             content = f.read()
+                        content = self.config_manager.redact_config_content(content)
                             
                         # Show only the key configuration defines
                         lines = content.split('\n')
@@ -468,6 +537,7 @@ class ConfigurationWorkflow:
                             # Restore the selected backup
                             import shutil
                             shutil.copy2(backup_file, self.config_manager.config_path)
+                            self.config_manager.config_path.chmod(0o600)
                             
                             ASCIIArt.show_success(f"Configuration restored from {display_name}!")
                             print(f"📁 Current configuration backed up before restoration")

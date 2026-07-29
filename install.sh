@@ -17,6 +17,30 @@ NC='\033[0m' # No Color
 # Configuration
 REPO_URL="https://github.com/friedjof/GlowLight.git"
 INSTALL_DIR="$HOME/GlowLight"
+
+# When this script is executed from inside an existing checkout, that checkout
+# is what the user means. Piped through curl there is no script directory, so
+# the clone into $INSTALL_DIR stays the default.
+detect_local_checkout() {
+    local script_source="${BASH_SOURCE[0]:-}"
+    [ -n "$script_source" ] || return 1
+    [ -f "$script_source" ] || return 1
+
+    local script_dir
+    script_dir="$(cd "$(dirname "$script_source")" 2>/dev/null && pwd)" || return 1
+    [ -f "$script_dir/platformio.ini" ] || return 1
+    [ -f "$script_dir/scripts/setup.py" ] || return 1
+
+    LOCAL_CHECKOUT="$script_dir"
+    return 0
+}
+
+if detect_local_checkout; then
+    INSTALL_DIR="$LOCAL_CHECKOUT"
+    USE_LOCAL_CHECKOUT=1
+else
+    USE_LOCAL_CHECKOUT=0
+fi
 PYTHON_MIN_VERSION="3.8"
 
 # Function to print colored output
@@ -168,7 +192,14 @@ install_dependencies() {
 # Function to clone or update repository
 setup_repository() {
     print_status "Setting up GlowLight repository..."
-    
+
+    if [ "$USE_LOCAL_CHECKOUT" -eq 1 ]; then
+        print_status "Running from an existing checkout at $INSTALL_DIR"
+        print_status "Leaving it untouched; no clone and no pull."
+        cd "$INSTALL_DIR"
+        return
+    fi
+
     if [ -d "$INSTALL_DIR" ]; then
         print_status "GlowLight directory already exists at $INSTALL_DIR"
         read -p "Do you want to update it? (y/N): " -n 1 -r

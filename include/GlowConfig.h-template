@@ -12,9 +12,39 @@
 // Button
 #define BUTTON_PIN 4
 
+// NetworkService
+#define WIFI_ON false
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#define GLOW_HOSTNAME "glowlight"
+// Hold the hardware button during boot to open the setup access point. The
+// password must be unique and 8-63 characters when the portal is enabled.
+#define GLOW_PORTAL_ENABLED false
+#define GLOW_PORTAL_PASSWORD "PROVISION_WITH_SETUP"
+
+// Password-protected firmware updates over infrastructure WiFi. OTA uses a
+// separate credential from the captive portal and is disabled by default.
+#define GLOW_OTA_ENABLED false
+#define GLOW_OTA_PASSWORD "PROVISION_WITH_SETUP"
+
+// Home Assistant over MQTT. Needs infrastructure WiFi and a broker; entities
+// are generated from the modes the firmware was built with.
+#define GLOW_MQTT_ENABLED false
+#define GLOW_MQTT_HOST ""
+#define GLOW_MQTT_PORT 1883
+#define GLOW_MQTT_USER ""
+#define GLOW_MQTT_PASSWORD ""
+#define GLOW_MQTT_DISCOVERY_PREFIX "homeassistant"
+
 // CommunicationService
-#define MESH_ON true
+#define MESH_ON false
+#define GLOW_SYNC_FOLLOW_DEFAULT true
+#define GLOW_SYNC_PUBLISH_DEFAULT true
+// Fallback channel used while no WiFi connection exists. With WiFi enabled the
+// access point dictates the channel, so all lamps of a group must share one AP.
 #define ESPNOW_CHANNEL 1           // WiFi channel (1-13), configurable
+#define GLOW_GROUP_KEY_HEX "PROVISION_WITH_SETUP"
+#define GLOW_MAX_GROUP_NODES 8
 #define GLOW_NODE_TIMEOUT 30*60*1000 // 30 minutes
 #define HARTBEAT_INTERVAL 10000
 #define LEVEL_UPDATE_INTERVAL 100  // ms - max 10 updates/sec for live dimming
