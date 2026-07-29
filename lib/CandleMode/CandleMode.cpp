@@ -2,6 +2,7 @@
 
 CandleMode::CandleMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Candle Light";
+  this->id = "candle";
   this->description = "This produces a candle light effect";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";

@@ -28,6 +28,7 @@ const CRGB StrobeMode::PARTY_COLORS[6] = {
 StrobeMode::StrobeMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) 
   : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Strobe";
+  this->id = "strobe";
   this->description = "Synchronized party strobe lighting with ESP-NOW coordination";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -40,6 +41,34 @@ void StrobeMode::setup() {
   this->registry.init("speed", RegistryType::INT, 1, 0, 3); // Default to Medium
   this->registry.init("pattern", RegistryType::INT, 0, 0, 3); // Default to White
   this->registry.init("emergency_stop", RegistryType::BOOL, false);
+  this->markSettingReadOnly("emergency_stop");
+
+  JsonDocument syncArguments;
+  syncArguments["startTime"]["type"] = "integer";
+  syncArguments["startTime"]["minimum"] = 0;
+  syncArguments["startTime"]["required"] = true;
+  syncArguments["speed"]["type"] = "integer";
+  syncArguments["speed"]["minimum"] = 0;
+  syncArguments["speed"]["maximum"] = 3;
+  syncArguments["speed"]["required"] = true;
+  syncArguments["pattern"]["type"] = "integer";
+  syncArguments["pattern"]["minimum"] = 0;
+  syncArguments["pattern"]["maximum"] = 3;
+  syncArguments["pattern"]["required"] = true;
+  this->declareCommand("sync_start", syncArguments);
+
+  JsonDocument speedArguments;
+  speedArguments["speed"] = syncArguments["speed"];
+  speedArguments["startTime"] = syncArguments["startTime"];
+  this->declareCommand("speed_change", speedArguments);
+
+  JsonDocument patternArguments;
+  patternArguments["pattern"] = syncArguments["pattern"];
+  this->declareCommand("pattern_change", patternArguments);
+
+  JsonDocument noArguments;
+  noArguments.to<JsonObject>();
+  this->declareCommand("emergency_stop", noArguments);
 
   // Load settings
   this->currentSpeed = this->registry.getInt("speed");
@@ -500,4 +529,17 @@ bool StrobeMode::handleRemoteCommand(const String& command, const JsonDocument& 
   }
 
   return false;
+}
+
+void StrobeMode::onStateApplied() {
+  this->currentSpeed = this->registry.getInt("speed");
+  this->currentPattern = this->registry.getInt("pattern");
+  this->isEmergencyStop = this->registry.getBool("emergency_stop");
+}
+
+void StrobeMode::onStateActivated() {
+  uint32_t currentMeshTime = this->communicationService->getMeshTime();
+  this->globalStartTime = ((currentMeshTime / 10000) + 1) * 10000;
+  this->isSynchronized = true;
+  if (this->isEmergencyStop) this->lightService->fill(CRGB::Black);
 }

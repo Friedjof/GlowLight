@@ -44,7 +44,7 @@ String GlowRegistry::CRGB2Hex(CRGB color) {
 }
 
 CRGB GlowRegistry::Hex2CRGB(String hex) {
-  if (hex.length() != 6) {
+  if (!this->isHexColor(hex)) {
     return CRGB(0, 0, 0);
   }
 
@@ -57,6 +57,17 @@ CRGB GlowRegistry::Hex2CRGB(String hex) {
   hex.substring(4, 6).toCharArray(b, 3);
 
   return CRGB(strtol(r, NULL, 16), strtol(g, NULL, 16), strtol(b, NULL, 16));
+}
+
+bool GlowRegistry::isHexColor(const String& hex) {
+  if (hex.length() != 6) return false;
+  for (size_t i = 0; i < hex.length(); ++i) {
+    char character = hex[i];
+    if (!((character >= '0' && character <= '9') ||
+          (character >= 'a' && character <= 'f') ||
+          (character >= 'A' && character <= 'F'))) return false;
+  }
+  return true;
 }
 
 // init functions
@@ -95,6 +106,7 @@ bool GlowRegistry::init(String key, RegistryType type, uint16_t defaultValue, ui
   this->meta[key]["min"] = min;
   this->meta[key]["max"] = max;
   this->meta[key]["default"] = defaultValue;
+  this->meta[key]["writable"] = true;
   
   this->registry[key] = defaultValue;
 
@@ -111,6 +123,7 @@ bool GlowRegistry::init(String key, RegistryType type, String defaultValue) {
 
   this->meta[key]["type"] = type;
   this->meta[key]["default"] = defaultValue;
+  this->meta[key]["writable"] = true;
   
   this->registry[key] = defaultValue;
 
@@ -127,6 +140,7 @@ bool GlowRegistry::init(String key, RegistryType type, bool defaultValue) {
 
   this->meta[key]["type"] = type;
   this->meta[key]["default"] = defaultValue;
+  this->meta[key]["writable"] = true;
   
   this->registry[key] = defaultValue;
 
@@ -143,6 +157,7 @@ bool GlowRegistry::init(String key, RegistryType type, CRGB defaultValue) {
 
   this->meta[key]["type"] = type;
   this->meta[key]["default"] = this->CRGB2Hex(defaultValue);
+  this->meta[key]["writable"] = true;
   
   this->registry[key] = this->CRGB2Hex(defaultValue);
 
@@ -261,6 +276,48 @@ bool GlowRegistry::contains(String key) {
   return this->meta[key].is<JsonObject>();
 }
 
+bool GlowRegistry::setWritable(String key, bool writable) {
+  if (!this->contains(key)) return false;
+  this->meta[key]["writable"] = writable;
+  return true;
+}
+
+bool GlowRegistry::valueValid(const String& key, JsonVariantConst value) {
+  if (!this->contains(key) || value.isNull()) return false;
+
+  RegistryType type = this->meta[key]["type"];
+  if (type == RegistryType::INT) {
+    if (!value.is<int>()) return false;
+    int candidate = value.as<int>();
+    uint16_t minimum = this->meta[key]["min"];
+    uint16_t maximum = this->meta[key]["max"];
+    return candidate >= minimum && candidate <= maximum;
+  }
+  if (type == RegistryType::STRING) return value.is<String>();
+  if (type == RegistryType::BOOL) return value.is<bool>();
+  if (type == RegistryType::COLOR) {
+    return value.is<String>() && this->isHexColor(value.as<String>());
+  }
+  return false;
+}
+
+bool GlowRegistry::applyValue(const String& key, JsonVariantConst value) {
+  RegistryType type = this->meta[key]["type"];
+  if (type == RegistryType::INT) return this->setInt(key, value.as<uint16_t>());
+  if (type == RegistryType::STRING) return this->setString(key, value.as<String>());
+  if (type == RegistryType::BOOL) return this->setBool(key, value.as<bool>());
+  if (type == RegistryType::COLOR) {
+    return this->setColor(key, this->Hex2CRGB(value.as<String>()));
+  }
+  return false;
+}
+
+bool GlowRegistry::setValue(String key, JsonVariantConst value) {
+  if (!this->contains(key) || !this->meta[key]["writable"].as<bool>() ||
+      !this->valueValid(key, value)) return false;
+  return this->applyValue(key, value);
+}
+
 // serialize and deserialize
 JsonDocument GlowRegistry::serialize() {
   JsonDocument serialized;
@@ -272,51 +329,62 @@ JsonDocument GlowRegistry::serialize() {
   return serialized;
 }
 
-bool GlowRegistry::deserialize(JsonDocument doc) {
-  // check if the title and version match (to prevent deserialization of wrong data for another mode)
-  if (doc["title"].as<String>() != this->meta["title"]) {
-    Serial.print("[ERROR] The title '");
-    Serial.print(doc["title"].as<String>());
-    Serial.print("' does not match with this title '");
-    Serial.print(this->meta["title"].as<String>());
-    Serial.println("'. Skipping deserialization");
-    return false;
-  } else if (doc["version"].as<String>() != this->meta["version"]) {
-    Serial.print("[ERROR] The version '");
-    Serial.print(doc["version"].as<String>());
-    Serial.print("' from mode '");
-    Serial.print(doc["title"].as<String>());
-    Serial.print("' does not match with this version '");
-    Serial.print(this->meta["version"].as<String>());
-    Serial.println("'. Skipping deserialization");
+JsonDocument GlowRegistry::describe() {
+  JsonDocument description;
+  JsonObject settings = description.to<JsonObject>();
+
+  for (JsonPair setting : this->registry.as<JsonObject>()) {
+    String key = setting.key().c_str();
+    JsonObject descriptor = settings[key].to<JsonObject>();
+    RegistryType type = this->meta[key]["type"];
+    if (type == RegistryType::INT) {
+      descriptor["type"] = "integer";
+      descriptor["minimum"] = this->meta[key]["min"];
+      descriptor["maximum"] = this->meta[key]["max"];
+    } else if (type == RegistryType::STRING) {
+      descriptor["type"] = "string";
+    } else if (type == RegistryType::BOOL) {
+      descriptor["type"] = "boolean";
+    } else if (type == RegistryType::COLOR) {
+      descriptor["type"] = "string";
+      descriptor["format"] = "rgb-hex";
+    }
+    descriptor["default"] = this->meta[key]["default"];
+    descriptor["writable"] = this->meta[key]["writable"];
+  }
+  return description;
+}
+
+bool GlowRegistry::deserialize(const JsonDocument& doc) {
+  // AbstractMode validates stable mode ID and state schema version. Display
+  // title and implementation version are deliberately not protocol identities.
+  if (!doc["registry"].is<JsonObjectConst>()) return false;
+
+  JsonObjectConst reg = doc["registry"].as<JsonObjectConst>();
+
+  if (reg.size() != this->registry.size()) {
+    Serial.println("[ERROR] Registry field count does not match");
     return false;
   }
 
-  JsonObject reg = doc["registry"].as<JsonObject>();
+  // Validate the complete document before changing any value.
+  for (JsonPair kv : this->registry.as<JsonObject>()) {
+    String key = kv.key().c_str();
+    if (!this->valueValid(key, reg[key])) {
+      Serial.print("[ERROR] Key '");
+      Serial.print(key);
+      Serial.println("' is missing or invalid");
+      return false;
+    }
+  }
+
+  for (JsonPairConst incoming : reg) {
+    if (!this->contains(incoming.key().c_str())) return false;
+  }
 
   for (JsonPair kv : this->registry.as<JsonObject>()) {
     String key = kv.key().c_str();
-
-    RegistryType type = this->meta[key]["type"];
-
-    if (!reg[key].isNull()) {
-      if (type == RegistryType::INT) {
-        if (!this->setInt(key, reg[key].as<uint16_t>())) return false;
-      } else if (type == RegistryType::STRING) {
-        if (!this->setString(key, reg[key].as<String>())) return false;
-      } else if (type == RegistryType::BOOL) {
-        if (!this->setBool(key, reg[key].as<bool>())) return false;
-      } else if (type == RegistryType::COLOR) {
-        if (!this->setColor(key, this->Hex2CRGB(reg[key].as<String>()))) return false;
-      } else {
-        Serial.println("[ERROR] Invalid type");
-        return false;
-      }
-    } else {
-      Serial.print("[ERROR] Key '");
-      Serial.print(key);
-      Serial.println("' not found in document");
-    }
+    if (!this->applyValue(key, reg[key])) return false;
   }
 
   return true;

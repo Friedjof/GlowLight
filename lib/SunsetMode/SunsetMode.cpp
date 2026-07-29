@@ -30,6 +30,7 @@ const float SunsetMode::PHASE_BOUNDARIES[4] = {0.25f, 0.50f, 0.85f, 1.0f};
 SunsetMode::SunsetMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) 
   : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Sunset";
+  this->id = "sunset";
   this->description = "Natural sunset simulation for bedtime";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -42,6 +43,18 @@ void SunsetMode::setup() {
   this->registry.init("duration", RegistryType::INT, 1, 0, 3); // Default to 15min (index 1)
   this->registry.init("manual_shutdown", RegistryType::BOOL, false);
   this->registry.init("sunset_active", RegistryType::BOOL, false);
+  this->markSettingReadOnly("manual_shutdown");
+  this->markSettingReadOnly("sunset_active");
+
+  JsonDocument startArguments;
+  startArguments["duration"]["type"] = "integer";
+  startArguments["duration"]["minimum"] = 0;
+  startArguments["duration"]["maximum"] = 3;
+  startArguments["duration"]["required"] = true;
+  this->declareCommand("start", startArguments);
+  JsonDocument noArguments;
+  noArguments.to<JsonObject>();
+  this->declareCommand("shutdown", noArguments);
 
   // Set initial values
   this->currentDuration = this->registry.getInt("duration");
@@ -62,7 +75,7 @@ void SunsetMode::customFirst() {
   
   // Start new sunset if not manually shut down
   if (!this->isManualShutdown) {
-    this->startSunset();
+    this->startSunset(false);
     this->showDurationFeedback();
   }
 }
@@ -166,6 +179,22 @@ bool SunsetMode::handleRemoteCommand(const String& command, const JsonDocument& 
   return false;
 }
 
+void SunsetMode::onStateApplied() {
+  this->currentDuration = this->registry.getInt("duration");
+  this->sunsetDurationMs = DURATION_OPTIONS[this->currentDuration];
+  this->isManualShutdown = this->registry.getBool("manual_shutdown");
+  this->sunsetActive = this->registry.getBool("sunset_active");
+  if (this->sunsetActive) this->sunsetStartTime = millis();
+}
+
+void SunsetMode::onStateActivated() {
+  this->currentPhase = this->sunsetActive ? GOLDEN_HOUR : COMPLETE;
+  if (this->sunsetActive) this->sunsetStartTime = millis();
+  if (this->isManualShutdown || !this->sunsetActive) {
+    this->lightService->fill(CRGB::Black);
+  }
+}
+
 bool SunsetMode::newDuration() {
   if (!this->distanceService->isObjectPresent()) {
     return false;
@@ -247,7 +276,7 @@ SunsetMode::SunsetPhase SunsetMode::getCurrentPhase(float progress) {
   return COMPLETE;
 }
 
-void SunsetMode::startSunset() {
+void SunsetMode::startSunset(bool broadcast) {
   this->sunsetStartTime = millis();
   this->sunsetActive = true;
   this->currentPhase = GOLDEN_HOUR;
@@ -255,8 +284,7 @@ void SunsetMode::startSunset() {
   
   Serial.println("[SunsetMode] Starting " + DURATION_NAMES[this->currentDuration] + " sunset");
   
-  // Broadcast sunset start to synchronized lamps
-  this->broadcastSunsetStart();
+  if (broadcast) this->broadcastSunsetStart();
 }
 
 void SunsetMode::showDurationFeedback() {

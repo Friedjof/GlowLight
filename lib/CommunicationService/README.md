@@ -9,11 +9,17 @@ This service provides a broadcast-based communication layer that enables multipl
 ## Key Features
 
 - ⚡ **Ultra-low latency**: <10ms message delivery
+- 🔐 **Encrypted and authenticated**: AES-256-GCM over a shared 256-bit group key
+- 🔁 **Replay protection**: challenge/proof handshake plus a 64-frame counter window
 - 📡 **Broadcast-based**: No peer management required
 - 🔍 **Auto-discovery**: Automatic lamp detection via heartbeat
 - 🔄 **State synchronization**: Instant mode/color/brightness sync
 - 📊 **Node tracking**: Automatic timeout and cleanup
-- 🛡️ **Message validation**: MAC address and payload verification
+- 🧩 **Fragmentation**: payloads up to 512 bytes across the 250-byte ESP-NOW MTU
+
+The security model, frame format and key provisioning are documented in
+[docs/security.md](../../docs/security.md). Protocol tests live in
+`test/native/` and run on the host with `make test-native`.
 
 ## Architecture
 
@@ -23,7 +29,7 @@ This service provides a broadcast-based communication layer that enables multipl
 |---------|--------------|---------|
 | **Latency** | 50-200ms | <10ms |
 | **Setup** | SSID + Password | WiFi Channel only |
-| **Peer Limit** | ~10 nodes | Unlimited (broadcast) |
+| **Peer Limit** | ~10 nodes | 8 nodes per group |
 | **Routing** | Multi-hop mesh | Single-hop broadcast |
 | **Memory** | ~50KB | ~5KB |
 | **Discovery** | Automatic | Heartbeat-based |
@@ -66,8 +72,14 @@ Broadcasts mode state or mode-specific commands to all lamps using one envelope.
   "message": {
     "eventKind": 0,
     "mode": {
-      "title": "Rainbow Mode",
-      "version": "3.2.1"
+      "id": "rainbow",
+      "title": "Rainbow",
+      "version": "1.0.0",
+      "schemaVersion": 1
+    },
+    "sync": {
+      "revision": 12,
+      "origin": 305419896
     },
     "payload": {
       "speed": 4,
@@ -82,8 +94,10 @@ Broadcasts mode state or mode-specific commands to all lamps using one envelope.
 User changes mode → Controller.event() → sendStateEvent() → Broadcast → All lamps update
 ```
 
-Mode commands use `eventKind: 1` and add a `command` field. The controller validates
-the target mode and version before forwarding the payload to that mode.
+Mode commands use `eventKind: 1` and add a `command` field. The controller resolves
+the stable mode ID and validates its state schema version before forwarding the
+payload to that mode. Display title and implementation version are diagnostic
+metadata, not protocol identities.
 
 ### 2. SYNC (Type 1)
 Synchronizes state when a new lamp joins the network.
@@ -95,17 +109,23 @@ Synchronizes state when a new lamp joins the network.
 {
   "type": 1,
   "message": {
-    "timestamp": 45000
+    "kind": "state.request",
+    "requester": 305419896
   }
 }
 ```
 
 **Flow**:
 ```
-New lamp powers on → Sends SYNC with millis()
-Older lamp (higher millis) → Sends current state via EVENT
-New lamp → Adopts synchronized state
+New or rejoining lamp → Sends state.request
+Publishing peer → Replies with its current versioned state snapshot
+Joining lamp → Validates and adopts the deterministic newest state
 ```
+
+State versions are `(revision, origin)` pairs. Higher revisions win and the
+origin node ID breaks revision ties. A snapshot preserves the publisher's
+current version and carries `replyTo` so only a valid response can complete the
+requester's rejoin.
 
 ### 3. HEARTBEAT (Type 2)
 Keep-alive beacon for network maintenance and discovery.
@@ -186,7 +206,7 @@ uint32_t macToNodeId(const uint8_t* mac) {
 
 ## Public API
 
-The CommunicationService maintains **100% API compatibility** with the previous PainlessMesh implementation:
+The current mode-event API carries stable mode IDs and explicit state schema versions:
 
 ```cpp
 // Constructor
@@ -197,10 +217,12 @@ void setup();
 void loop();
 
 // Communication
-void sendStateEvent(const JsonDocument& state);
-void sendModeCommand(const String& title, const String& version,
-                     const String& command, const JsonDocument& payload);
-void sendSync(uint64_t timestamp);
+bool sendStateEvent(const JsonDocument& state);
+bool sendStateSnapshot(const JsonDocument& state, uint32_t replyTo);
+bool sendModeCommand(const String& id, const String& title, const String& version,
+                     uint16_t schemaVersion, const String& command,
+                     const JsonDocument& payload);
+void sendSyncRequest();
 void sendWipe(uint16_t numberOfWipes);
 
 // Node Management
@@ -231,6 +253,8 @@ bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callbac
 // Communication
 #define MESH_ON true                // Enable/disable communication
 #define ESPNOW_CHANNEL 1            // WiFi channel (1-13)
+#define GLOW_SYNC_FOLLOW_DEFAULT true
+#define GLOW_SYNC_PUBLISH_DEFAULT true
 
 // Timing
 #define HARTBEAT_INTERVAL 10000     // Heartbeat interval (ms)
@@ -239,10 +263,17 @@ bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callbac
 
 ### Important Notes
 
-1. **WiFi Channel**: All lamps must be on the same channel
-2. **Payload Size**: Maximum 238 bytes (`ESP_NOW_MAX_DATA_LEN` minus 12-byte header)
+1. **WiFi Channel**: `NetworkService` owns the shared WiFi/ESP-NOW radio. Lamps
+   without WiFi use the configured fallback channel. Every lamp must remain on
+   the same current channel; mixed WiFi/non-WiFi groups therefore require the
+   access point to use the fallback channel.
+2. **Payload Size**: Up to 512 plaintext bytes, split across at most three
+   authenticated and encrypted ESP-NOW frames.
 3. **Timeout**: Inactive nodes are removed after 30 minutes
 4. **Discovery**: New lamps are discovered within 10 seconds (heartbeat interval)
+5. **Sync policy**: `follow` and `publish` gate application behavior only. Secure
+   discovery, authentication, heartbeats and state requests continue while a
+   lamp is detached.
 
 ## Implementation Details
 
@@ -250,30 +281,26 @@ bool onReceived(std::function<void(uint32_t, JsonDocument, MessageType)> callbac
 
 ```cpp
 void CommunicationService::setup() {
-  // 1. Set WiFi to Station mode
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-
-  // 2. Get local MAC and generate node ID
+  // NetworkService has already configured station mode and the radio channel.
   WiFi.macAddress(this->localMac);
   this->localNodeId = macToNodeId(this->localMac);
-
-  // 3. Initialize ESP-NOW
   esp_now_init();
-
-  // 4. Register receive callback
   esp_now_register_recv_cb(CommunicationService::onDataRecv);
 
-  // 5. Add broadcast peer (ff:ff:ff:ff:ff:ff)
-  esp_now_peer_info_t broadcastPeer;
-  memset(&broadcastPeer, 0, sizeof(broadcastPeer));
-  uint8_t broadcastAddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  memcpy(broadcastPeer.peer_addr, broadcastAddr, 6);
-  broadcastPeer.channel = ESPNOW_CHANNEL;
+  esp_now_peer_info_t broadcastPeer = {};
+  memcpy(broadcastPeer.peer_addr, BROADCAST_MAC, 6);
+  // Follow the channel selected by NetworkService.
+  broadcastPeer.channel = 0;
   broadcastPeer.encrypt = false;
   esp_now_add_peer(&broadcastPeer);
+
+  sendHello();
 }
 ```
+
+`NetworkService::onChannelChanged()` is connected to
+`CommunicationService::radioChannelChanged()`. A stable channel change queues a
+fresh HELLO immediately; existing authenticated sessions remain valid.
 
 ### Broadcasting (broadcast())
 
@@ -506,7 +533,10 @@ if (result != ESP_OK) {
 ### Controller Integration
 
 ```cpp
-communicationService.setup();
+CommunicationConfig config;
+config.enabled = deviceConfig.communicationEnabled;
+config.groupKeyHex = deviceConfig.groupKeyHex;
+communicationService.setup(config);
 communicationService.loop();
 communicationService.sendStateEvent(mode->serialize());
 communicationService.onNewConnection(callback);
@@ -517,11 +547,8 @@ communicationService.onReceived(callback);
 
 Potential improvements:
 
-1. **Encryption**: Add AES encryption for secure communication
-2. **Mesh routing**: Implement multi-hop for extended range
-3. **Message acknowledgment**: Add ACK for critical messages
-4. **Channel scanning**: Auto-select best WiFi channel
-5. **Power optimization**: Sleep mode between heartbeats
+1. **Message acknowledgment**: Add delivery confirmation for critical commands
+2. **Hardware coverage**: Automate access-point loss and channel-switch tests
 
 ## References
 

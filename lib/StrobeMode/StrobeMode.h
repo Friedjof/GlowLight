@@ -21,6 +21,10 @@ class StrobeMode : public AbstractMode {
 
     bool newSpeed();
 
+  protected:
+    void onStateApplied() override;
+    void onStateActivated() override;
+
   private:
     // Strobe settings (shared across all lamps)
     static const uint32_t SPEED_INTERVALS[4];

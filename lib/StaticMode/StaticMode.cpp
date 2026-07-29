@@ -2,6 +2,7 @@
 
 StaticMode::StaticMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Static Light";
+  this->id = "static";
   this->description = "This produces constant light";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -70,4 +71,17 @@ void StaticMode::last() {
 void StaticMode::customClick() {
   Serial.print("[INFO] " + this->registry.getBool("fixed") ? "Fixed" : "Not fixed");
   this->registry.setBool("fixed", !this->registry.getBool("fixed"));
+}
+
+void StaticMode::onStateApplied() {
+  this->fixed = this->registry.getBool("fixed");
+  this->lightService->fill(this->registry.getColor("color"));
+}
+
+void StaticMode::onSettingChanged(const String& key) {
+  if (key == "color") this->lightService->fill(this->registry.getColor("color"));
+}
+
+void StaticMode::onStateActivated() {
+  this->lightService->fill(this->registry.getColor("color"));
 }

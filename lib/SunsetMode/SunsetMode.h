@@ -21,6 +21,10 @@ class SunsetMode : public AbstractMode {
 
     bool newDuration();
 
+  protected:
+    void onStateApplied() override;
+    void onStateActivated() override;
+
   private:
     // Sunset phases
     enum SunsetPhase {
@@ -55,7 +59,7 @@ class SunsetMode : public AbstractMode {
     CRGB lerpColor(CRGB color1, CRGB color2, float t);
     float getSunsetProgress();
     SunsetPhase getCurrentPhase(float progress);
-    void startSunset();
+    void startSunset(bool broadcast = true);
     void showDurationFeedback();
     void broadcastSunsetStart();
     void broadcastSunsetShutdown();

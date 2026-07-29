@@ -2,6 +2,7 @@
 
 ColorPickerMode::ColorPickerMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Color Picker";
+  this->id = "color-picker";
   this->description = "Color picker mode";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";

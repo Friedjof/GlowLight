@@ -2,6 +2,7 @@
 
 Alert::Alert(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Alert";
+  this->id = "alert";
   this->description = "Flashing alert mode";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";

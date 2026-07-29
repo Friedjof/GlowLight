@@ -2,6 +2,7 @@
 
 BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Beacon";
+  this->id = "beacon";
   this->description = "This mode simulates a beacon";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -12,7 +13,9 @@ BeaconMode::BeaconMode(LightService* lightService, DistanceService* distanceServ
 void BeaconMode::setup() {
   this->registry.init("hueOne", RegistryType::INT, 0, 0, 255);
   this->registry.init("hueTwo", RegistryType::INT, 192, 0, 255);
-  this->registry.init("speed", RegistryType::INT, BEACON_SPEED_DEFAULT, BEACON_SPEED_MIN, BEACON_SPEED_MAX);
+  // "speed" is a frame delay, so the fastest setting is the smallest number:
+  // BEACON_SPEED_MAX is the numeric lower bound.
+  this->registry.init("speed", RegistryType::INT, BEACON_SPEED_DEFAULT, BEACON_SPEED_MAX, BEACON_SPEED_MIN);
 
   this->addOption("Speed", [this]() {
     this->newSpeed();

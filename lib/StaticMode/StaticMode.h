@@ -23,6 +23,9 @@ class StaticMode : public AbstractMode {
 
   private:
     bool fixed = false;
+    void onStateApplied() override;
+    void onSettingChanged(const String& key) override;
+    void onStateActivated() override;
 };
 
 #endif

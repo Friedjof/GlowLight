@@ -1,5 +1,5 @@
 /*
- * GlowRegistry.h - A simple registry for storing settings in EEPROM
+ * GlowRegistry.h - Typed mode state plus machine-readable setting metadata.
  */
 
 #ifndef REGISTRY_H
@@ -27,6 +27,9 @@ class GlowRegistry {
     // helper functions
     String CRGB2Hex(CRGB color);
     CRGB Hex2CRGB(String hex);
+    bool isHexColor(const String& hex);
+    bool valueValid(const String& key, JsonVariantConst value);
+    bool applyValue(const String& key, JsonVariantConst value);
 
   public:
     GlowRegistry();
@@ -63,10 +66,13 @@ class GlowRegistry {
     bool reset(String key);
     uint16_t size();
     bool contains(String key);
+    bool setWritable(String key, bool writable);
+    bool setValue(String key, JsonVariantConst value);
 
     // serialize and deserialize
     JsonDocument serialize();
-    bool deserialize(JsonDocument doc);
+    JsonDocument describe();
+    bool deserialize(const JsonDocument& doc);
 };
 
 #endif

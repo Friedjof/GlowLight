@@ -84,25 +84,86 @@ GlowLight uses **ESP-NOW** for ultra-fast, low-latency wireless communication be
 - 📡 **Simple setup**: No SSID/password configuration needed - just power on
 - 🎯 **Reliable**: Direct broadcast communication, no routing overhead
 - 📶 **Good range**: Up to 200m line-of-sight
-- 🔓 **No peer limits**: Supports unlimited number of lamps via broadcast
+- 🔐 **Encrypted**: AES-256-GCM with a shared group key, up to 8 lamps per group
 
 ### Configuration
 
-You can configure the WiFi channel in `include/GlowConfig.h`:
+ESP-NOW broadcasts are not encrypted by the radio, so GlowLight encrypts and
+authenticates every frame itself. All lamps of a group share one 256-bit key,
+which the setup generates for you:
 
-```cpp
-#define ESPNOW_CHANNEL 1  // WiFi channel (1-13), configurable
+```bash
+./install.sh    # ESP-NOW section: "create" on the first lamp, "join" on the others
 ```
 
-**Note**: All lamps must be on the same WiFi channel to communicate. The default channel 1 works well in most environments.
+```cpp
+#define WIFI_ON false                  // Optional infrastructure WiFi
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#define GLOW_HOSTNAME "glowlight"
+#define GLOW_PORTAL_ENABLED false       // Hold button during boot to activate
+#define GLOW_PORTAL_PASSWORD "..."      // Unique WPA2 password from setup
+#define GLOW_OTA_ENABLED false          // Updates over infrastructure WiFi
+#define GLOW_OTA_PASSWORD "..."         // Separate unique update password
+#define ESPNOW_CHANNEL 1              // WiFi channel (1-13), configurable
+#define GLOW_GROUP_KEY_HEX "..."      // 64 hex characters, provisioned by the setup
+#define GLOW_MAX_GROUP_NODES 8
+#define GLOW_SYNC_FOLLOW_DEFAULT true  // Apply incoming group changes
+#define GLOW_SYNC_PUBLISH_DEFAULT true // Publish local group changes
+```
+
+`WIFI_ON` is optional; ESP-NOW works without an access point. With WiFi disabled
+or unavailable, every lamp parks on `ESPNOW_CHANNEL`. While connected, the access
+point dictates the shared radio channel, so all lamps in a group must remain on
+the same current channel. Using one access point for all WiFi-enabled lamps is the
+simplest guarantee. In a mixed group with WiFi disabled on some lamps, the access
+point must use `ESPNOW_CHANNEL`. Reconnect attempts are spread out and, once the
+AP channel is known, short and targeted so the fallback channel remains available
+for ESP-NOW most of the time.
+
+All lamps must also share the same group key. Lamps with different keys neither
+discover nor control each other. Without a valid key wireless synchronization
+stays disabled.
+
+See [docs/security.md](docs/security.md) for the security model, key rotation and
+migration from older, unencrypted firmware.
+
+Validated NVS configuration overrides these compile-time values. The optional
+captive portal is opened only by holding the hardware button during boot and
+runs on the ESP-NOW fallback channel without disabling secure group transport.
+See [docs/configuration.md](docs/configuration.md) for provisioning, persistence
+and the redacted `glow.config/1` API.
+
+Optional OTA updates are available at `http://<hostname>.local/update` only while
+infrastructure WiFi is online and require Digest authentication. See
+[docs/ota.md](docs/ota.md) for the upload procedure and security boundary.
+
+### 🏠 Home Assistant
+
+A lamp on the WiFi can publish itself to Home Assistant over MQTT and appears
+with a light, a mode selector and one control per mode setting — all generated
+from the modes the firmware was built with, so nothing has to be configured by
+hand. A command from Home Assistant moves the whole lamp group by default. See
+[docs/home-assistant.md](docs/home-assistant.md).
 
 ### How It Works
 
-1. **Automatic Discovery**: Lamps discover each other automatically via heartbeat messages (every 10 seconds)
-2. **Instant Sync**: State changes (mode, color, brightness) are broadcast instantly to all lamps
-3. **No Infrastructure**: No router, server, or internet connection required
-4. **Self-Organizing**: New lamps automatically join the network when powered on
+1. **Automatic Discovery**: Lamps announce themselves via heartbeat messages (every 10 seconds)
+2. **Authentication**: A new lamp is only trusted after answering a fresh challenge, so recorded traffic cannot be replayed in
+3. **Instant Sync**: State changes (mode, color, brightness) are broadcast instantly to all lamps in the group
+4. **No Infrastructure**: No router, server, or internet connection required
 5. **Resilient**: 30-minute timeout removes inactive lamps from the network
+
+Following incoming changes and publishing local changes are independent runtime
+controls. They can be changed through the local `glow.control/1`
+`sync.configure` operation. Re-enabling follow first requests a versioned state
+snapshot and blocks application publishing until the lamp has safely rejoined.
+See [docs/control-api.md](docs/control-api.md) for the request and status format.
+
+`NetworkService` owns WiFi mode, access-point reconnects and the shared radio
+channel. `CommunicationService` keeps its ESP-NOW broadcast peer on channel `0`
+(the radio's current channel) and immediately announces the node after every
+stable channel change.
 
 For technical details, see the [CommunicationService README](lib/CommunicationService/README.md).
 
@@ -267,6 +328,9 @@ For more details on the libraries, refer to the [`platformio.ini`](/platformio.i
 ## 👨‍💻 Development
 
 The software is written in C++ and is structured as a typical PlatformIO project. The main file is [`src/main.cpp`](/src/main.cpp), which contains the setup and loop functions. The different modes, services, and the controller are implemented in separate files in the [`/lib`](/lib) folder.
+
+The machine-readable mode capability document and transport-neutral JSON control
+surface are documented in [docs/control-api.md](docs/control-api.md).
 
 ### Technical Diagrams
 

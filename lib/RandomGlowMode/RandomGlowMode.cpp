@@ -32,6 +32,7 @@ const uint16_t RandomGlowMode::COLOR_PALETTE[10] = {
 RandomGlowMode::RandomGlowMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) 
   : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Random Glow";
+  this->id = "random-glow";
   this->description = "Simplified color flow using inherited brightness control - elegant pause and transition cycles";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -45,6 +46,15 @@ void RandomGlowMode::setup() {
   this->registry.init("current_color", RegistryType::INT, 0, 0, 9); // Color palette index (0-9 for 10 colors)
   this->registry.init("next_color", RegistryType::INT, 1, 0, 9); // Next color index
   this->registry.init("distance_locked", RegistryType::BOOL, false);
+  this->markSettingReadOnly("current_color");
+  this->markSettingReadOnly("next_color");
+
+  JsonDocument settingArguments;
+  settingArguments["key"]["type"] = "string";
+  settingArguments["key"]["required"] = true;
+  settingArguments["value"]["type"] = "any";
+  settingArguments["value"]["required"] = true;
+  this->declareCommand("setting_changed", settingArguments);
 
   // Load settings
   this->currentSpeedMode = this->registry.getInt("speed_mode");
@@ -159,6 +169,14 @@ bool RandomGlowMode::handleRemoteCommand(const String& command, const JsonDocume
   }
 
   return false;
+}
+
+void RandomGlowMode::onStateApplied() {
+  this->currentSpeedMode = this->registry.getInt("speed_mode");
+  this->currentColorIndex = this->registry.getInt("current_color");
+  this->nextColorIndex = this->registry.getInt("next_color");
+  this->isDistanceLocked = this->registry.getBool("distance_locked");
+  this->startNewPhase();
 }
 
 bool RandomGlowMode::newSpeed() {

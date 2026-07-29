@@ -2,6 +2,7 @@
 
 MiniGame::MiniGame(LightService *lightService, DistanceService *distanceService, CommunicationService *communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "MiniGame";
+  this->id = "mini-game";
   this->description = "With this game you can test your reaction time";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";

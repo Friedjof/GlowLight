@@ -23,6 +23,9 @@ class RandomGlowMode : public AbstractMode {
 
     bool newSpeed();
 
+  protected:
+    void onStateApplied() override;
+
   private:
     // Simplified phase states - only pause and transition
     enum GlowPhase {

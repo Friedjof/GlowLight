@@ -6,11 +6,16 @@ AbstractMode::AbstractMode(LightService* lightService, DistanceService* distance
   this->communicationService = communicationService;
 
   this->registry = GlowRegistry();
+  this->commandDescriptors.to<JsonObject>();
 }
 
 // meta functions
 String AbstractMode::getTitle() {
   return this->title;
+}
+
+String AbstractMode::getId() {
+  return this->id;
 }
 
 String AbstractMode::getDescription() {
@@ -33,6 +38,10 @@ String AbstractMode::getLicense() {
   return this->license;
 }
 
+uint16_t AbstractMode::getStateSchemaVersion() {
+  return this->stateSchemaVersion;
+}
+
 // option functions
 uint8_t AbstractMode::getCurrentOption() {
   return this->currentOption;
@@ -51,9 +60,19 @@ bool AbstractMode::addOption(String title, std::function<void()> callback, bool 
   option.onlyOnce = onlyOnce;
   option.disabled = disabled;
 
-  this->options.add(option);
+  this->options.push_back(option);
 
   return true;
+}
+
+void AbstractMode::declareCommand(const String& command, const JsonDocument& arguments,
+                                  bool groupCapable) {
+  this->commandDescriptors[command]["arguments"] = arguments;
+  this->commandDescriptors[command]["groupCapable"] = groupCapable;
+}
+
+bool AbstractMode::markSettingReadOnly(const String& key) {
+  return this->registry.setWritable(key, false);
 }
 
 bool AbstractMode::nextOption() {
@@ -69,13 +88,13 @@ bool AbstractMode::nextOption() {
   }
 
   Serial.print("[INFO] Switched to option '");
-  Serial.print(this->options.get(this->currentOption).title);
+  Serial.print(this->options[this->currentOption].title);
   Serial.println("'");
 
   this->optionChanged = true;
   this->optionCalled = false;
 
-  return this->options.get(this->currentOption).alert;
+  return this->options[this->currentOption].alert;
 }
 
 bool AbstractMode::setOption(uint8_t option) {
@@ -88,7 +107,7 @@ bool AbstractMode::setOption(uint8_t option) {
   this->optionChanged = true;
   this->optionCalled = false;
 
-  return this->options.get(this->currentOption).alert;
+  return this->options[this->currentOption].alert;
 }
 
 bool AbstractMode::callCurrentOption() {
@@ -96,11 +115,12 @@ bool AbstractMode::callCurrentOption() {
     return false;
   }
 
-  if ((this->optionCalled && this->options.get(this->currentOption).onlyOnce) || this->options.get(this->currentOption).disabled) {
+  if ((this->optionCalled && this->options[this->currentOption].onlyOnce) ||
+      this->options[this->currentOption].disabled) {
     return false;
   }
 
-  this->options.get(this->currentOption).callback();
+  this->options[this->currentOption].callback();
 
   this->optionCalled = true;
 
@@ -114,7 +134,7 @@ bool AbstractMode::recallCurrentOption() {
 
   this->optionCalled = true;
 
-  this->options.get(this->currentOption).callback();
+  this->options[this->currentOption].callback();
 
   return true;
 }
@@ -133,7 +153,8 @@ void AbstractMode::sendCommand(const String& command, const JsonDocument& payloa
     return;
   }
 
-  this->communicationService->sendModeCommand(this->title, this->version, command, payload);
+  this->communicationService->sendModeCommand(this->id, this->title, this->version,
+                                              this->stateSchemaVersion, command, payload);
 }
 
 // brightness functions
@@ -211,15 +232,43 @@ JsonDocument AbstractMode::serialize() {
   this->registry.setInt("currentOption", this->currentOption);
   this->registry.setInt("brightness", this->desiredBrightness);
 
-  return this->registry.serialize();
+  JsonDocument serialized = this->registry.serialize();
+  serialized["id"] = this->id;
+  serialized["schemaVersion"] = this->stateSchemaVersion;
+  return serialized;
 }
 
-void AbstractMode::deserialize(JsonDocument doc) {
-  // check if the title and version match (to prevent deserialization of wrong data for another mode)
-  this->registry.deserialize(doc);
+JsonDocument AbstractMode::capabilities() {
+  JsonDocument capability;
+  capability["id"] = this->id;
+  capability["name"] = this->title;
+  capability["description"] = this->description;
+  capability["implementationVersion"] = this->version;
+  capability["stateSchemaVersion"] = this->stateSchemaVersion;
+  capability["settings"] = this->registry.describe();
+
+  JsonArray options = capability["options"].to<JsonArray>();
+  for (size_t index = 0; index < this->options.size(); ++index) {
+    const option_t& option = this->options[index];
+    JsonObject descriptor = options.add<JsonObject>();
+    descriptor["index"] = index;
+    descriptor["name"] = option.title;
+    descriptor["action"] = option.onlyOnce;
+    descriptor["disabled"] = option.disabled;
+  }
+  capability["commands"] = this->commandDescriptors;
+  return capability;
+}
+
+bool AbstractMode::deserialize(const JsonDocument& doc) {
+  if (!doc["id"].is<String>() || doc["id"].as<String>() != this->id ||
+      !doc["schemaVersion"].is<uint16_t>() ||
+      doc["schemaVersion"].as<uint16_t>() != this->stateSchemaVersion ||
+      !this->registry.deserialize(doc)) return false;
 
   this->currentOption = this->registry.getInt("currentOption");
   this->desiredBrightness = this->registry.getInt("brightness");
+  this->onStateApplied();
 
   // call the setup function of the derived class
   this->optionChanged = true;
@@ -228,6 +277,65 @@ void AbstractMode::deserialize(JsonDocument doc) {
   this->applyDesiredBrightness();
 
   Serial.println("[DEBUG] Deserialized data");
+  return true;
+}
+
+bool AbstractMode::setSetting(const String& key, JsonVariantConst value) {
+  if (!this->registry.setValue(key, value)) return false;
+  if (key == "brightness") {
+    this->desiredBrightness = this->registry.getInt("brightness");
+    this->applyDesiredBrightness();
+  }
+  this->onStateApplied();
+  this->onSettingChanged(key);
+  return true;
+}
+
+bool AbstractMode::executeCommand(const String& command, const JsonDocument& payload) {
+  if (!this->acceptsCommand(command, payload)) return false;
+  return this->handleRemoteCommand(command, payload);
+}
+
+bool AbstractMode::acceptsCommand(const String& command,
+                                  const JsonDocument& payload) const {
+  JsonObjectConst commands = this->commandDescriptors.as<JsonObjectConst>();
+  JsonObjectConst descriptor = commands[command].as<JsonObjectConst>();
+  JsonObjectConst expected = descriptor["arguments"].as<JsonObjectConst>();
+  if (descriptor.isNull() || expected.isNull() || !payload.is<JsonObjectConst>()) {
+    return false;
+  }
+
+  JsonObjectConst actual = payload.as<JsonObjectConst>();
+  for (JsonPairConst argument : actual) {
+    if (!expected[argument.key()].is<JsonObjectConst>()) return false;
+  }
+  for (JsonPairConst definition : expected) {
+    JsonObjectConst rules = definition.value().as<JsonObjectConst>();
+    JsonVariantConst value = actual[definition.key()];
+    bool required = rules["required"] | false;
+    if (value.isNull()) {
+      if (required) return false;
+      continue;
+    }
+    String type = rules["type"] | "any";
+    bool integer = value.is<int64_t>() || value.is<uint64_t>();
+    if ((type == "integer" && !integer) ||
+        (type == "boolean" && !value.is<bool>()) ||
+        (type == "string" && !value.is<String>()) ||
+        (type != "integer" && type != "boolean" && type != "string" &&
+         type != "any")) return false;
+    double numeric = value.as<double>();
+    if (integer && !rules["minimum"].isNull() &&
+        numeric < rules["minimum"].as<double>()) return false;
+    if (integer && !rules["maximum"].isNull() &&
+        numeric > rules["maximum"].as<double>()) return false;
+  }
+  return true;
+}
+
+bool AbstractMode::commandSupportsGroup(const String& command) {
+  JsonObjectConst commands = this->commandDescriptors.as<JsonObjectConst>();
+  return commands[command]["groupCapable"] | false;
 }
 
 // main functions
@@ -239,11 +347,12 @@ void AbstractMode::loop() {
   this->customLoop();
 }
 
-void AbstractMode::first() {
+void AbstractMode::first(bool stateRestored) {
   this->applyDesiredBrightness();
   this->lightService->setLightUpdateSteps(LED_UPDATE_STEPS);
 
-  this->customFirst();
+  if (stateRestored) this->onStateActivated();
+  else this->customFirst();
 }
 
 void AbstractMode::modeSetup() {
@@ -257,6 +366,7 @@ void AbstractMode::modeSetup() {
   uint8_t maximumOption = this->getNumberOfOptions() == 0 ? 0 : this->getNumberOfOptions() - 1;
   this->registry.init("currentOption", RegistryType::INT, 0, 0, maximumOption);
   this->registry.init("brightness", RegistryType::INT, LED_DEFAULT_BRIGHTNESS, 0, LED_MAX_BRIGHTNESS);
+  this->registry.setWritable("currentOption", false);
 }
 
 void AbstractMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
@@ -269,3 +379,9 @@ void AbstractMode::applyRemoteUpdate(uint16_t distance, uint16_t level) {
 bool AbstractMode::handleRemoteCommand(const String& command, const JsonDocument& payload) {
   return false;
 }
+
+void AbstractMode::onStateApplied() {}
+
+void AbstractMode::onSettingChanged(const String& key) {}
+
+void AbstractMode::onStateActivated() { this->customFirst(); }

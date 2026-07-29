@@ -202,10 +202,12 @@ flowchart TD
     D --> E[Services Setup]
     E --> E1[lightService.setup]
     E --> E2[distanceService.setup]
-    E --> E3[communicationService.setup]
+    E --> E3[networkService.setup]
+    E --> E4[communicationService.setup]
     E1 --> F[Button Setup]
     E2 --> F
     E3 --> F
+    E4 --> F
     F --> F1[button.begin BUTTON_PIN]
     F1 --> F2[button.setLongClickTime 500]
     F2 --> G[Mode Registration]
@@ -227,7 +229,8 @@ flowchart TD
     M --> M2[controller.loop]
     M --> M3[lightService.loop]
     M --> M4[distanceService.loop]
-    M --> M5[communicationService.loop]
+    M --> M5[networkService.loop]
+    M --> M6[communicationService.loop]
     M1 --> N{Button Event?}
     M2 --> O{Distance Change?}
     M3 --> P{LED Update?}

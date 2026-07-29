@@ -1,0 +1,6 @@
+#ifndef GLOW_SHIM_ADAFRUIT_VL53L0X_H
+#define GLOW_SHIM_ADAFRUIT_VL53L0X_H
+
+class Adafruit_VL53L0X {};
+
+#endif

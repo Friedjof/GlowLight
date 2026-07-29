@@ -2,6 +2,7 @@
 
 RainbowMode::RainbowMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService) : AbstractMode(lightService, distanceService, communicationService) {
   this->title = "Rainbow";
+  this->id = "rainbow";
   this->description = "Rainbow mode";
   this->author = "Friedjof Noweck";
   this->contact = "programming@noweck.info";
@@ -12,7 +13,9 @@ RainbowMode::RainbowMode(LightService* lightService, DistanceService* distanceSe
 void RainbowMode::setup() {
   // set default values for this mode
   this->registry.init("saturation", RegistryType::INT, RAINBOW_SATURATION_DEFAULT, 0, 255);
-  this->registry.init("speed", RegistryType::INT, RAINBOW_SPEED_DEFAULT, RAINBOW_SPEED_MIN, RAINBOW_SPEED_MAX);
+  // "speed" is a frame delay, so the fastest setting is the smallest number:
+  // RAINBOW_SPEED_MAX is the numeric lower bound.
+  this->registry.init("speed", RegistryType::INT, RAINBOW_SPEED_DEFAULT, RAINBOW_SPEED_MAX, RAINBOW_SPEED_MIN);
   this->registry.init("stopped", RegistryType::BOOL, false);
 
   // add mode options

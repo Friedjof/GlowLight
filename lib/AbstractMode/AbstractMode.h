@@ -11,6 +11,7 @@
 #include <Arduino.h>
 #include <ArrayList.h>
 #include <functional>
+#include <vector>
 #include <FastLED.h>
 
 #include "GlowRegistry.h"
@@ -40,24 +41,27 @@ class AbstractMode {
 		bool optionChanged = false;
 		bool optionCalled = false;
 
-		ArrayList<option_t> options;
+		std::vector<option_t> options;
 
 	protected:
 		String title;
+		String id;
 		String description;
 		String author;
 		String contact;
 		String version;
 		String license;
+		uint16_t stateSchemaVersion = 1;
 
 		LightService* lightService;
 		DistanceService* distanceService;
 		CommunicationService* communicationService;
 
 		GlowRegistry registry;
+		JsonDocument commandDescriptors;
 
-		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS};
-		result_t lastResult = {0, 0};
+		result_t currentResult = {DISTANCE_MAX_MM, LED_DEFAULT_BRIGHTNESS, 0};
+		result_t lastResult = {0, 0, 0};
 
 		uint8_t desiredBrightness = LED_DEFAULT_BRIGHTNESS;
 
@@ -65,20 +69,28 @@ class AbstractMode {
 		uint16_t invExpNormalize(uint16_t input, uint16_t min, uint16_t max, uint16_t levels, double factor);
 
 		bool addOption(String title, std::function<void()> callback, bool alert = true, bool onlyOnce = false, bool disabled = false);
+		void declareCommand(const String& command, const JsonDocument& arguments,
+		                    bool groupCapable = true);
+		bool markSettingReadOnly(const String& key);
 		bool callCurrentOption();
 		void sendCommand(const String& command, const JsonDocument& payload);
 		void applyDesiredBrightness();
 		void applyHardwareBrightness(uint8_t brightness);
+		virtual void onStateApplied();
+		virtual void onSettingChanged(const String& key);
+		virtual void onStateActivated();
 
 	public:
 		AbstractMode(LightService* lightService, DistanceService* distanceService, CommunicationService* communicationService);
 
 		String getTitle();
+		String getId();
 		String getDescription();
 		String getAuthor();
 		String getContact();
 		String getVersion();
 		String getLicense();
+		uint16_t getStateSchemaVersion();
 
 		bool optionHasChanged();
 
@@ -100,10 +112,15 @@ class AbstractMode {
 		bool setOption(uint8_t option);
 
 		JsonDocument serialize();
-		void deserialize(JsonDocument doc);
+		JsonDocument capabilities();
+		bool deserialize(const JsonDocument& doc);
+		bool setSetting(const String& key, JsonVariantConst value);
+		bool executeCommand(const String& command, const JsonDocument& payload);
+		bool acceptsCommand(const String& command, const JsonDocument& payload) const;
+		bool commandSupportsGroup(const String& command);
 
 		void loop();
-		void first();
+		void first(bool stateRestored = false);
 		void modeSetup();
 
 		virtual void setup() = 0;

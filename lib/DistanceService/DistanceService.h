@@ -54,7 +54,7 @@ class DistanceService {
 
     Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
 
-    result_t result = {0, LED_DEFAULT_BRIGHTNESS};
+    result_t result = {0, LED_DEFAULT_BRIGHTNESS, 0};
 
     uint8_t status = 0x00;
     bool sendAlert = false;

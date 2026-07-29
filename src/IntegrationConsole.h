@@ -2,7 +2,9 @@
 #define INTEGRATIONCONSOLE_H
 
 class Controller;
+class CommunicationService;
 
-void integrationConsoleLoop(Controller& controller);
+void integrationConsoleLoop(Controller& controller,
+                            CommunicationService& communicationService);
 
 #endif
