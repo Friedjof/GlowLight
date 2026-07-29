@@ -6,6 +6,8 @@
 #include "Controller.h"
 #include "LightService.h"
 #include "DistanceService.h"
+#include <WiFi.h>
+
 #include "NetworkService.h"
 #include "CommunicationService.h"
 #include "ConfigService.h"
@@ -67,6 +69,13 @@ void setup() {
                   configError.c_str());
     deviceConfig = DeviceConfig::safeDefaults();
   }
+
+  // Every lamp is flashed from the same configuration, so a default hostname
+  // would be identical everywhere. Deriving it once here makes the mDNS name and
+  // the Home Assistant device name unique, because both follow this value.
+  uint8_t localMac[6] = {};
+  WiFi.macAddress(localMac);
+  deviceConfig.hostname = DeviceConfig::uniqueHostname(deviceConfig.hostname, localMac);
 
   NetworkConfig networkConfig;
   networkConfig.enabled = deviceConfig.wifiEnabled;
@@ -163,5 +172,6 @@ void loop() {
   networkService.loop();
   captivePortalService.loop();
   otaService.loop();
+  homeAssistantService.loop();
   communicationService.loop();
 }

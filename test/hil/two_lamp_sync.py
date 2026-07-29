@@ -201,6 +201,48 @@ def assert_healthy(lamps):
         )
 
 
+def assert_home_assistant_is_alive(lamps, timeout=25):
+    """A lamp that announces Home Assistant has to actually talk to the broker.
+
+    Success or failure does not matter here; silence does. The service was once
+    constructed and configured but never added to loop(), which produced exactly
+    this: an 'enabled' line and nothing afterwards.
+    """
+    # Only a lamp that actually reached the network can talk to a broker, so a
+    # lamp that never joined WiFi says nothing about this bug either way.
+    announcing = [
+        lamp for lamp in lamps
+        if lamp.count_since_boot("Home Assistant enabled") >= 1
+        and lamp.count_since_boot("WiFi connected") >= 1
+    ]
+    if not announcing:
+        return
+
+    def spoke(lamp):
+        return (lamp.count_since_boot("MQTT connected") >= 1
+                or lamp.count_since_boot("MQTT connect failed") >= 1)
+
+    wait_until(
+        "every lamp with Home Assistant enabled to reach the broker or report why not",
+        lambda: all(spoke(lamp) for lamp in announcing),
+        timeout=timeout,
+    )
+
+
+def assert_distinct_hostnames(lamps):
+    """Lamps share one compiled configuration but must not share a name."""
+    names = []
+    for lamp in lamps:
+        for line in lamp.lines_since_boot():
+            match = re.search(r"Reachable as (\S+)\.local", line)
+            if match:
+                names.append(match.group(1))
+                break
+    if len(names) < 2:
+        return
+    assert len(set(names)) == len(names), f"Lamps announce the same mDNS name: {names}"
+
+
 def assert_secure_transport(lamps):
     for lamp in lamps:
         assert lamp.count_since_boot("Secure communication initialized") >= 1, (
@@ -266,6 +308,18 @@ def main():
             ),
             timeout=10 + 5 * len(lamps),
         )
+
+        # Lamps of the same group that are not part of this run still publish
+        # their state, which silently overrides whatever the test sets up.
+        expected = set(node_ids)
+        for lamp in lamps:
+            seen = set(lamp.discoveries())
+            strangers = seen - expected
+            assert not strangers, (
+                f"{lamp.port} sees lamps that are not part of this test: "
+                f"{sorted(strangers)}. Power them off or give them a different "
+                "group key, otherwise their state wins over the test's."
+            )
 
         # The boot alert has to finish first, so keep asking rather than
         # polling a status that was requested once and never refreshed.
@@ -438,6 +492,8 @@ def main():
             assert all(count == 1 for count in discoveries.values()), (
                 f"Repeated discovery on {lamp.port}: {discoveries}"
             )
+        assert_distinct_hostnames(lamps)
+        assert_home_assistant_is_alive(lamps)
         assert_healthy(lamps)
 
         print(f"PASS ({len(lamps)} lamps): capabilities, sync policy, rejoin, "

@@ -85,6 +85,14 @@ struct DeviceConfig {
   String mqttPassword = GLOW_MQTT_PASSWORD;
   String mqttDiscoveryPrefix = GLOW_MQTT_DISCOVERY_PREFIX;
 
+  // Every lamp is flashed from the same configuration, so the compiled default
+  // hostname would collide: all of them would claim the same mDNS name and show
+  // up in Home Assistant under one name. A hostname that is still the default
+  // therefore gets the last three MAC bytes appended; a name chosen in the
+  // portal belongs to that one lamp already and is left untouched.
+  static String uniqueHostname(const String& configured, const uint8_t* mac,
+                               const char* defaultHostname = GLOW_HOSTNAME);
+
   static DeviceConfig compileTimeDefaults();
   static DeviceConfig safeDefaults();
   bool validate(String* error = nullptr) const;

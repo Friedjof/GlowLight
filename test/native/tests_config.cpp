@@ -125,6 +125,47 @@ GLOW_TEST(schema_one_configuration_migrates_with_ota_disabled) {
 
 // Falling back to safe defaults has to silence every subsystem, otherwise a
 // rejected configuration still starts services with values nobody validated.
+// All lamps share one compiled configuration, so the default hostname would be
+// identical everywhere: they would all claim glowlight.local and show up in
+// Home Assistant under the same name.
+GLOW_TEST(the_default_hostname_gets_a_per_device_suffix) {
+  uint8_t mac[6] = {0x98, 0x3d, 0xae, 0x52, 0xc8, 0x2c};
+  CHECK(DeviceConfig::uniqueHostname(GLOW_HOSTNAME, mac) == "glowlight-52c82c");
+
+  uint8_t other[6] = {0xdc, 0x06, 0x75, 0x9d, 0x6f, 0xc0};
+  CHECK(DeviceConfig::uniqueHostname(GLOW_HOSTNAME, other) == "glowlight-9d6fc0");
+  CHECK(DeviceConfig::uniqueHostname(GLOW_HOSTNAME, mac) !=
+        DeviceConfig::uniqueHostname(GLOW_HOSTNAME, other));
+}
+
+// A name entered in the portal belongs to that one lamp already.
+GLOW_TEST(a_custom_hostname_is_left_alone) {
+  uint8_t mac[6] = {0x98, 0x3d, 0xae, 0x52, 0xc8, 0x2c};
+  CHECK(DeviceConfig::uniqueHostname("wohnzimmer", mac) == "wohnzimmer");
+  CHECK(DeviceConfig::uniqueHostname("glow-kitchen", mac) == "glow-kitchen");
+}
+
+GLOW_TEST(a_derived_hostname_stays_valid_and_bounded) {
+  uint8_t mac[6] = {0x98, 0x3d, 0xae, 0x52, 0xc8, 0x2c};
+
+  // Empty falls back to the compiled default and still gets a suffix.
+  CHECK(DeviceConfig::uniqueHostname("", mac) == "glowlight-52c82c");
+
+  DeviceConfig config = validConfig();
+  config.hostname = DeviceConfig::uniqueHostname(GLOW_HOSTNAME, mac);
+  CHECK(config.validate());
+
+  // A long compiled default must not push the name past what a hostname may be;
+  // the suffix is what makes it unique, so the base gives way.
+  std::string longDefault(60, 'a');
+  String derived = DeviceConfig::uniqueHostname(longDefault.c_str(), mac,
+                                                longDefault.c_str());
+  CHECK_EQ(derived.length(), static_cast<unsigned int>(63));
+  CHECK(derived.endsWith("-52c82c"));
+  config.hostname = derived;
+  CHECK(config.validate());
+}
+
 GLOW_TEST(safe_defaults_disable_every_network_service) {
   DeviceConfig safe = DeviceConfig::safeDefaults();
 

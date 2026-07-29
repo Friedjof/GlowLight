@@ -34,6 +34,23 @@ DeviceConfig DeviceConfig::safeDefaults() {
   return config;
 }
 
+String DeviceConfig::uniqueHostname(const String& configured, const uint8_t* mac,
+                                    const char* defaultHostname) {
+  String base = configured.isEmpty() ? String(defaultHostname) : configured;
+  if (base != defaultHostname || mac == nullptr) return base;
+
+  char suffix[8];
+  snprintf(suffix, sizeof(suffix), "-%02x%02x%02x", mac[3], mac[4], mac[5]);
+
+  // A hostname may not exceed 63 characters, and the suffix is what makes it
+  // unique, so the base is what gives way.
+  const size_t suffixLength = strlen(suffix);
+  if (base.length() + suffixLength > 63) {
+    base = base.substring(0, 63 - suffixLength);
+  }
+  return base + suffix;
+}
+
 bool DeviceConfig::validHostname(const String& value) {
   if (value.isEmpty() || value.length() > 63 || value[0] == '-' ||
       value[value.length() - 1] == '-') return false;
