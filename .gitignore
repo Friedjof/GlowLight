@@ -13,3 +13,5 @@ include/backups/
 *.pyo
 test_*.py
 *.log
+# Tooling caches
+.serena/

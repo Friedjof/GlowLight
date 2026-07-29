@@ -1,5 +1,71 @@
-
 # Tests
+
+```bash
+make test          # everything that runs without hardware (~1 s)
+make test-native   # secure transport protocol tests only
+make test-setup    # setup, group key handling, host-side frame format
+```
+
+## Native protocol and network tests (`test/native/`)
+
+Compiles the real `lib/CommunicationService/CommunicationService.cpp` on the host
+against thin shims for Arduino, WiFi, ESP-NOW and FreeRTOS, with the mbedTLS
+subset it uses mapped onto OpenSSL. The logic under test is the firmware's own,
+not a reimplementation.
+
+Frames are crafted by `peer.cpp`, an independent implementation of the wire
+format built directly on OpenSSL's HKDF and AES-GCM, so the firmware and the test
+oracle cannot drift apart silently.
+
+Covered:
+
+- HKDF-SHA256 against the RFC 5869 vectors, AES-256-GCM against a NIST vector,
+  and a golden frame that pins the exact bytes on the air
+- tampering with every header field, the ciphertext and the GCM tag
+- foreign group keys, plaintext legacy frames, truncated and oversized frames
+- challenge/proof handshake, expired and unsolicited proofs, challenge replay
+- replay window: duplicates, counters below the proof floor, counters outside the
+  window, recordings replayed across a receiver reboot
+- session lifecycle: peer reboot, replayed old-boot frames, eight-peer capacity,
+  slot reclamation after the node timeout
+- fragmentation: 1 to 3 fragments, the 512-byte maximum, out-of-order and
+  duplicate fragments, missing fragments, non-canonical fragment sizes
+- send path: counter monotonicity, oversized messages, full transmit queue,
+  a lost send-completion callback
+- discovery: only authenticated peers create nodes, timeouts, heartbeats
+- WiFi state machine: fallback channel, timeouts, jittered reconnect backoff,
+  targeted reconnects, mDNS lifecycle and radio API failures
+- WiFi/ESP-NOW integration: dynamic peer channel and immediate HELLO after stable
+  channel changes
+- runtime configuration validation, secret redaction and captive-portal
+  `WIFI_AP_STA` behavior on the ESP-NOW fallback channel
+- OTA schema migration, independent password validation and redaction; firmware
+  builds are bounded by the configured 1,280-KiB OTA app-slot size
+- OTA server lifecycle, authentication and one-time token gates, flash failures,
+  full ESP image verification and delayed successful restart
+- registry schema export, strict setting validation, read-only values and atomic
+  state application
+- capability generation and generic controller operations for modes, options,
+  settings and declared commands
+- independent follow/publish policy, deterministic version conflicts, snapshots,
+  detached local state and rejoin behavior
+
+Run a subset:
+
+```bash
+make test-native FILTER=replay
+./test/native/build/glow_native_tests --verbose counter_below
+```
+
+Requires OpenSSL headers (`libssl-dev`) and the PlatformIO library sources in
+`.pio/libdeps/esp32c3` (`pio pkg install -e esp32c3`).
+
+## Setup and frame format tests
+
+`scripts/setup/tests/group_key_test.py` covers group key, portal-password and OTA
+provisioning, redaction in every output path, file permissions and the shipped
+template. `test/hil/glow_frames_test.py` pins the host-side frame builder used by
+the hardware tests against the firmware's format.
 
 ## Two-lamp hardware integration test
 
@@ -15,10 +81,77 @@ The runner detects both `/dev/ttyACM*` devices, flashes the
 - mutual ESP-NOW discovery occurs exactly once
 - mode changes propagate to the peer
 - option changes propagate to the peer
+- a detached lamp ignores group state, preserves local changes, and adopts the
+  group snapshot when follow is re-enabled
+- disabled publishing prevents local group changes from reaching the peer
 - heartbeats do not create phantom nodes, crashes, or reboots
 
-Use already flashed integration firmware with explicit ports:
+Both lamps must carry the same group key. Use already flashed integration
+firmware with explicit ports:
 
 ```bash
 python3 test/hil/two_lamp_sync.py --skip-flash --ports /dev/ttyACM0 /dev/ttyACM1
 ```
+
+## Group isolation test
+
+```bash
+make test-isolation
+```
+
+Flashes the two lamps with **different** group keys and verifies that neither
+authenticates or discovers the other and that a mode change does not cross the
+group boundary. Afterwards both lamps are flashed back with the key from
+`include/GlowConfig.h`, and the file is restored.
+
+Note on log evaluation: both hardware runners only look at output after the
+`Starting Glow` banner of the current run. Clearing the buffer on reset is not
+enough, because the lamp keeps printing for a moment after the reset pulse and
+lines already in the USB buffer arrive afterwards — a stale `Authenticated node`
+line from the previous session would otherwise be read as a fresh one.
+
+## Single-lamp security test on hardware
+
+```bash
+make test-security KEY=<64 hex characters>
+```
+
+Needs one lamp and the group key it was flashed with. Frames are built on the
+host and pushed into the lamp through the `INJECT` console command, while `TRACE`
+echoes the lamp's own frames so a full handshake can be completed without a
+second radio. It verifies that foreign-key, tampered and unauthenticated traffic
+is rejected, that recordings cannot be replayed after a handshake, and that a
+replayed frame from an earlier boot session does not unseat the live peer.
+
+`INJECT`, `TRACE`, `IDENTITY` and `NODES` exist only in the
+`esp32c3-integration` profile and are compiled out of every production build.
+
+## Home Assistant test on hardware
+
+```bash
+pip install paho-mqtt
+make test-homeassistant BROKER=mqtt.local DEVICE=glow-1384610827 PORT=/dev/ttyACM0
+```
+
+Needs a lamp with MQTT enabled and the broker it publishes to. It checks that the
+lamp announces its entities, that no payload leaks a secret, that a light command
+is applied and reported back, and that the lamp stays healthy. With
+`PEER_PORT=/dev/ttyACM1` it additionally verifies that a mode change sent to one
+lamp reaches the second one over ESP-NOW.
+
+The mapping between the control API and MQTT is covered by host tests in
+`test/native/tests_homeassistant.cpp`, including the guardrail that a mode the
+MQTT layer knows nothing about still appears with its options and settings.
+
+## Firmware update test on hardware
+
+```bash
+export GLOW_OTA_PASSWORD=<the lamp's OTA password>
+make test-ota PORT=/dev/ttyACM0 HOST=glowlight.local
+```
+
+Needs one lamp with OTA enabled and reachable over the infrastructure WiFi. It
+checks that the update page and the upload endpoint refuse unauthenticated and
+wrongly authenticated requests, that a truncated or foreign image is rejected
+and leaves the running firmware bootable, and that a valid image installs and
+restarts the lamp. The serial port is only used to watch the lamp come back up.
