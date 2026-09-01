@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # GlowLight Setup Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
-# or: wget -qO- https://raw.githubusercontent.com/friedjof/GlowLight/master/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/friedjof/GlowLight/main/install.sh | bash
+# or: wget -qO- https://raw.githubusercontent.com/friedjof/GlowLight/main/install.sh | bash
 
 set -e  # Exit on any error
 
@@ -207,7 +207,7 @@ setup_repository() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             print_status "Updating existing repository..."
             cd "$INSTALL_DIR"
-            git pull origin master || {
+            git pull origin main || {
                 print_error "Failed to update repository"
                 exit 1
             }
